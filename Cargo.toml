@@ -7,5 +7,5 @@ edition = "2021"
 rand = "0.8.4"
 
 [[bin]]
-name = "bst"
-path = "src/bst.rs"
+name = "avl"
+path = "src/avl.rs"
