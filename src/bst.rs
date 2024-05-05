@@ -8,7 +8,7 @@ pub struct Node<T: Copy + PartialOrd> {
 
 impl<T: Copy + PartialOrd> Node<T> {
     pub fn new(value: T) -> Node<T> {
-        Node { value: value, left: None, right: None }
+        Node { value, left: None, right: None }
     }
 }
 
@@ -35,7 +35,6 @@ fn delete_node<T: Copy + PartialOrd>(root: &mut NodePointer<T>) {
     let right = this.right.take();
 
     if left.is_none() && right.is_none() {
-        return;
     }
     else if left.is_none() {
         root.replace(right.unwrap());
@@ -74,11 +73,17 @@ impl<T: Copy + PartialOrd> Drop for Tree<T> {
     }
 }
 
+impl<T: Copy + PartialOrd> Default for Tree<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 /// Implementation for the Binary Search Tree.
 impl<T: Copy + PartialOrd> Tree<T> {
     pub fn new() -> Tree<T> {
         Tree { root: None }
     }
+
     
     pub fn contains(self: &Tree<T>, value: T) -> bool {
         let mut current = &self.root;
@@ -141,13 +146,11 @@ impl<T: Copy + PartialOrd> Tree<T> {
                 delete_node(current);
                 return true;
             }
+            if value < current_value {
+                current = &mut current.as_mut().unwrap().left;
+            }
             else {
-                if value < current_value {
-                    current = &mut current.as_mut().unwrap().left;
-                }
-                else {
-                    current = &mut current.as_mut().unwrap().right;
-                }
+                current = &mut current.as_mut().unwrap().right;
             }
         }
 
@@ -192,17 +195,18 @@ impl<T: Copy + PartialOrd> Tree<T> {
     
     pub fn iter<'a>(self: &'a Tree<T>) -> TreeIntoIterator<'a, T> {
         let mut stack = Vec::new();
-        
+    
         if let Some(node) = &self.root {
-            stack.push((false, node));
+            stack.push((false, &**node));
         }
-        
-        TreeIntoIterator { stack: stack }
+    
+        TreeIntoIterator { stack }
     }
+    
 }
 
 pub struct TreeIntoIterator<'a, T: Copy + PartialOrd> {
-    stack: Vec<(bool, &'a Box<Node<T>>)>
+    stack: Vec<(bool, &'a Node<T>)>
 }
 
 impl<'a, T: Copy + PartialOrd> Iterator for TreeIntoIterator<'a, T> {
@@ -233,7 +237,7 @@ impl<'a, T: Copy + PartialOrd> Iterator for TreeIntoIterator<'a, T> {
 
 extern crate rand; // 0.8.5
 use rand::Rng;
-use std::time::{Instant};
+use std::time::Instant;
 
 fn main() {
     let n = 10_000; // Adjust N based on performance requirements
