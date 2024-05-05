@@ -9,3 +9,7 @@ rand = "0.8.4"
 [[bin]]
 name = "avl"
 path = "src/avl.rs"
+
+[[bin]]
+name = "bst"
+path = "src/bst.rs"
