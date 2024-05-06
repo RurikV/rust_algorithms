@@ -57,7 +57,7 @@ impl<'a, T: 'a + Ord> AvlTreeSet<T> {
         let mut target_value = None;
 
         while let Some(current_node) = current_tree {
-            match current_node.value.cmp(&value) {
+            match current_node.value.cmp(value) {
                 Ordering::Less => {
                     prev_ptrs.push(&mut **current_node);
                     current_tree = &mut current_node.right;
@@ -111,7 +111,7 @@ impl<'a, T: 'a + Ord> AvlTreeSet<T> {
                 let mut right_node = right_tree.take().unwrap();
 
                 let inner_value = replace(&mut target_node.value, right_node.value);
-                replace(&mut target_node.right, right_node.right.take());
+                target_node.right = right_node.right.take();
 
                 target_node.update_height();
                 target_node.rebalance();
@@ -132,7 +132,7 @@ impl<'a, T: 'a + Ord> AvlTreeSet<T> {
                 let mut leftmost_node = parent_left_node.left.take().unwrap();
 
                 let inner_value = replace(&mut target_node.value, leftmost_node.value);
-                replace(&mut parent_left_node.left, leftmost_node.right.take());
+                parent_left_node.left = leftmost_node.right.take();
 
                 parent_left_node.update_height();
                 parent_left_node.rebalance();
@@ -167,7 +167,7 @@ impl<'a, T: 'a + Ord> AvlTreeSet<T> {
         let mut current_tree = &self.root;
 
         while let Some(current_node) = current_tree {
-            match current_node.value.cmp(&value) {
+            match current_node.value.cmp(value) {
                 Ordering::Less => {
                     current_tree = &current_node.right;
                 }
@@ -187,7 +187,7 @@ impl<'a, T: 'a + Ord> AvlTreeSet<T> {
         let mut current_tree = &self.root;
 
         while let Some(current_node) = current_tree {
-            match current_node.value.cmp(&value) {
+            match current_node.value.cmp(value) {
                 Ordering::Less => {
                     current_tree = &current_node.right;
                 }
@@ -266,8 +266,8 @@ impl<'a, T: 'a + Ord> AvlTreeSet<T> {
 
     pub fn symmetric_difference(&'a self, other: &'a Self) -> impl Iterator<Item = &'a T> + 'a {
         AvlTreeSetUnionIter {
-            left_iter: self.difference(&other).peekable(),
-            right_iter: other.difference(&self).peekable(),
+            left_iter: self.difference(other).peekable(),
+            right_iter: other.difference(self).peekable(),
         }
     }
 }
@@ -301,7 +301,7 @@ impl<'a, T: 'a + Ord> Iterator for AvlTreeSetNodeIter<'a, T> {
                         return None;
                     }
 
-                    Some(ref prev_node) => {
+                    Some(prev_node) => {
                         self.current_tree = &prev_node.right;
 
                         return Some(prev_node);
