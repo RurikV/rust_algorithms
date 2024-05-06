@@ -338,7 +338,7 @@ impl<'a, T: 'a + Ord, I: Iterator<Item = &'a T>> Iterator for AvlTreeSetUnionIte
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(&left_node) = self.left_iter.peek() {
             if let Some(&right_node) = self.right_iter.peek() {
-                match left_node.cmp(&right_node) {
+                match left_node.cmp(right_node) {
                     Ordering::Less => self.left_iter.next(),
                     Ordering::Equal => {
                         self.right_iter.next();
