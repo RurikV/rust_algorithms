@@ -20,5 +20,5 @@ name = "bst"
 path = "src/bst.rs"
 
 [[bin]]
-name = "avl-bst"
-path = "src/avl-bst.rs"
+name = "avl_tree_set"
+path = "src/avl_tree_set.rs"
