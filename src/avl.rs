@@ -8,7 +8,12 @@ struct TreeNode {
 
 impl TreeNode {
     fn new(value: i32) -> Self {
-        TreeNode { value, left: None, right: None, height: 1 }
+        TreeNode {
+            value,
+            left: None,
+            right: None,
+            height: 1,
+        }
     }
 
     fn height(node: &Option<Box<TreeNode>>) -> i32 {
@@ -20,7 +25,8 @@ impl TreeNode {
     }
 
     fn balance_factor(node: &Option<Box<TreeNode>>) -> i32 {
-        node.as_ref().map_or(0, |n| Self::height(&n.left) - Self::height(&n.right))
+        node.as_ref()
+            .map_or(0, |n| Self::height(&n.left) - Self::height(&n.right))
     }
 
     fn rotate_left(mut node: Box<TreeNode>) -> Box<TreeNode> {
@@ -66,12 +72,16 @@ impl TreeNode {
             None => return Box::new(TreeNode::new(value)),
         };
 
-        if value < node.value {
-            node.left = Some(Self::insert(node.left.take(), value));
-        } else if value > node.value {
-            node.right = Some(Self::insert(node.right.take(), value));
-        } else {
-            return node; // Duplicate values not allowed
+        match value.cmp(&node.value) {
+            std::cmp::Ordering::Less => {
+                node.left = Some(Self::insert(node.left.take(), value));
+            }
+            std::cmp::Ordering::Greater => {
+                node.right = Some(Self::insert(node.right.take(), value));
+            }
+            std::cmp::Ordering::Equal => {
+                return node; // Duplicate values not allowed
+            }
         }
 
         Self::balance(node)
@@ -93,64 +103,64 @@ impl AVLTree {
 
     fn search(&self, value: i32) -> bool {
         let mut current = &self.root;
-    
-        while let Some(node) = current {
-          if value == node.value {
-              return true; 
-          } else if value < node.value {
-              current = &node.left;
-          } else {
-              current = &node.right;
-          }
-        }
-    
-        false // Not found 
-      }
 
-      fn remove(&mut self, value: i32) {
-        self.root = Self::remove_helper(self.root.take(), value);
-      }
-    
-      fn remove_helper(node: Option<Box<TreeNode>>, value: i32) -> Option<Box<TreeNode>> {
-        if node.is_none() { 
-          return None; // Not found
-        }
-    
-        let mut node = node.unwrap(); 
-    
-        if value < node.value {
-            node.left = Self::remove_helper(node.left.take(), value);
-        } else if value > node.value {
-            node.right = Self::remove_helper(node.right.take(), value);
-        } else {
-            // Node to be deleted found
-            if node.left.is_none() {
-                return node.right; // Replace with right child
-            } else if node.right.is_none() {
-                return node.left;  // Replace with left child
-            } else {
-                // Two children: Find inorder successor (smallest in right subtree)
-                let successor_value = Self::find_min(&node.right).value.clone(); 
-                node.value = successor_value;
-                node.right = Self::remove_helper(node.right.take(), successor_value);  
+        while let Some(node) = current {
+            match value.cmp(&node.value) {
+                Ordering::Equal => return true,
+                Ordering::Less => current = &node.left,
+                Ordering::Greater => current = &node.right,
             }
         }
-        Some(TreeNode::balance(node)) // Rebalance 
-      }
-    
-      fn find_min(node: &Option<Box<TreeNode>>) -> &TreeNode {
+
+        false // Not found
+    }
+
+    fn remove(&mut self, value: i32) {
+        self.root = Self::remove_helper(self.root.take(), value);
+    }
+
+    fn remove_helper(node: Option<Box<TreeNode>>, value: i32) -> Option<Box<TreeNode>> {
+        match node {
+            Some(mut node) => {
+                match value.cmp(&node.value) {
+                    Ordering::Less => {
+                        node.left = Self::remove_helper(node.left.take(), value);
+                    }
+                    Ordering::Greater => {
+                        node.right = Self::remove_helper(node.right.take(), value);
+                    }
+                    Ordering::Equal => {
+                        if node.left.is_none() {
+                            return node.right; // Replace with right child
+                        } else if node.right.is_none() {
+                            return node.left; // Replace with left child
+                        } else {
+                            // Two children: Find inorder successor (smallest in right subtree)
+                            let successor_value = Self::find_min(&node.right).value;
+                            node.value = successor_value;
+                            node.right = Self::remove_helper(node.right.take(), successor_value);
+                        }
+                    }
+                }
+
+                Some(TreeNode::balance(node)) // Rebalance
+            }
+            None => None, // Not found
+        }
+    }
+
+    fn find_min(node: &Option<Box<TreeNode>>) -> &TreeNode {
         let mut current = node.as_ref().unwrap(); // Safe because node can't be None here
         while let Some(left) = &current.left {
             current = left;
         }
         current
-      }
+    }
 }
-
 
 extern crate rand; // 0.8.5
 use rand::Rng;
-use std::time::{Instant};
+use std::{cmp::Ordering, time::Instant};
 
 fn main() {
     let n = 10_000; // Adjust N based on performance requirements

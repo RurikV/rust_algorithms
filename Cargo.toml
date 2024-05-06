@@ -18,3 +18,7 @@ path = "src/avl.rs"
 [[bin]]
 name = "bst"
 path = "src/bst.rs"
+
+[[bin]]
+name = "avl-bst"
+path = "src/avl-bst.rs"
