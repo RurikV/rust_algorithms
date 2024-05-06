@@ -22,3 +22,16 @@ path = "src/bst.rs"
 [[bin]]
 name = "avl_tree_set"
 path = "src/avl_tree_set.rs"
+
+[[bin]]
+name = "treap"
+path = "src/treap_map.rs"
+
+[[bin]]
+name = "bs_tree"
+path = "src/bs_tree.rs"
+
+[[bin]]
+name = "treap_tree"
+path = "src/treap_tree.rs"
+
