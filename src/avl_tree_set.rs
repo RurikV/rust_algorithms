@@ -73,11 +73,7 @@ impl<'a, T: 'a + Ord> AvlTreeSet<T> {
             };
         }
 
-        if target_value.is_none() {
-            return None;
-        }
-
-        let target_node = target_value.unwrap();
+        let target_node = target_value?;
 
         let taken_value = if target_node.left.is_none() || target_node.right.is_none() {
             if let Some(left_node) = target_node.left.take() {
@@ -310,7 +306,7 @@ impl<'a, T: 'a + Ord> Iterator for AvlTreeSetNodeIter<'a, T> {
 
                 Some(ref current_node) => {
                     if current_node.left.is_some() {
-                        self.prev_nodes.push(&current_node);
+                        self.prev_nodes.push(current_node);
                         self.current_tree = &current_node.left;
 
                         continue;
