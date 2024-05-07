@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::collections::Bound;
 use std::mem::swap;
@@ -168,7 +167,7 @@ impl<P: Payload> TreapNode<P> {
     }
 
     pub fn range<'a, 's: 'a>(&'s self, r: impl RangeBounds<&'a P::Key>) -> Iter<'s, P> {
-        Iter::new(self.borrow(), r)
+        Iter::new(self, r)
     }
 
     pub fn leftmost(&self) -> Option<&Self> {
@@ -500,7 +499,6 @@ impl<InnerPayload: Payload> Payload for ImpliedKeyPayload<InnerPayload> {
     }
 }
 
-// TODO: get rid of log
 pub struct Iter<'a, P> {
     root: &'a TreapNode<P>,
     from: Option<&'a TreapNode<P>>,
