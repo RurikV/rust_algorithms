@@ -10,6 +10,8 @@ edition = "2021"
 
 [dependencies]
 rand = "0.8.4"
+num-traits = "0.2"
+num = "0.4"
 
 [[bin]]
 name = "avl"
@@ -34,4 +36,8 @@ path = "src/bs_tree.rs"
 [[bin]]
 name = "treap_tree"
 path = "src/treap_tree.rs"
+
+[[bin]]
+name = "algo"
+path = "src/algo2.rs"
 
