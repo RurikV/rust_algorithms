@@ -48,70 +48,68 @@ fn fibonacci_by_golden_ratio(n: i32) -> f64 {
     result.round()
 }
 
-// struct Matrix {
-//     data: [[f64; 2]; 2],
-// }
+struct Matrix {
+    data: [[f64; 2]; 2],
+}
 
-// use std::ops::MulAssign;
+use std::ops::MulAssign;
 
-// impl Matrix {
-//     fn new() -> Self {
-//         Self { data: [[1.0, 1.0], [1.0, 0.0]] }
-//     }
+impl Matrix {
+    fn new() -> Self {
+        Self { data: [[1.0, 1.0], [1.0, 0.0]] }
+    }
 
-//     fn power(&mut self, exponent: i32) {
-//         if exponent == 0 {
-//             return;
-//         }
+    fn power(&mut self, mut exponent: i32) {
+        if exponent == 0 {
+            return;
+        }
 
-//         let mut temp = Matrix::new();
-//         let mut power = self.clone();
+        let mut result = Matrix::new();
+        let mut power = self.clone();
 
-//         let mut is_even = exponent % 2 == 0;
-//         let mut exponent = exponent;
+        while exponent > 0 {
+            if exponent % 2 != 0 {
+                result *= power.clone();
+            }
+            power *= power.clone(); // Ensure `power` is not consumed
+            exponent /= 2;
+        }
 
-//         while exponent > 0 {
-//             if !is_even {
-//                 *self *= power; // Multiply by a reference
-//             }
+        *self = result; // Update self to the final result
+    }
 
-//             temp *= power; // Multiply by a reference
-//             power = power.clone(); // Create a new clone as needed
-//             exponent /= 2;
-//             is_even = !is_even;
-//         }
-//     }
+    fn get_fibonacci_number(&self) -> i32 {
+        (self.data[0][1] as f64).round() as i32
+    }
+}
 
-//     fn get_fibonacci_number(&self) -> i32 {
-//         (self.data[0][1] as f64).round() as i32
-//     }
-// }
+impl Clone for Matrix {
+    fn clone(&self) -> Self {
+        Self { data: self.data }
+    }
+}
 
-// impl Clone for Matrix {
-//     fn clone(&self) -> Self {
-//         Self { data: self.data }
-//     }
-// }
+impl MulAssign for Matrix {
+    fn mul_assign(&mut self, rhs: Self) {
+        let mut new_data = [[0.0; 2]; 2];
+        for i in 0..2 {
+            for j in 0..2 {
+                new_data[i][j] = 0.0; // Reset before sum
+                for k in 0..2 {
+                    new_data[i][j] += self.data[i][k] * rhs.data[k][j];
+                }
+            }
+        }
+        self.data = new_data;
+    }
+}
 
-// impl MulAssign for Matrix {
-//     fn mul_assign(&mut self, rhs: Self) {
-//         let mut result = Matrix::new();
-//         for i in 0..2 {
-//             for j in 0..2 {
-//                 for k in 0..2 {
-//                     result.data[i][j] += self.data[i][k] * rhs.data[k][j];
-//                 }
-//             }
-//         }
-//         *self = result;
-//     }
-// }
 
-// fn fibonacci_by_matrix_multiplication(n: i32) -> i32 {
-//     let mut matrix = Matrix::new();
-//     matrix.power(n);
-//     matrix.get_fibonacci_number()
-// }
+fn fibonacci_by_matrix_multiplication(n: i32) -> i32 {
+    let mut matrix = Matrix::new();
+    matrix.power(n);
+    matrix.get_fibonacci_number()
+}
 
 fn count_primes_optimized(n: i32) -> i32 {
     if n <= 1 {
@@ -142,8 +140,6 @@ fn count_primes_optimized(n: i32) -> i32 {
 
     is_prime.iter().filter(|&p| *p).count() as i32
 }
-
-use num::integer::Roots;
 
 fn count_primes_eratosthenes(n: i32) -> i32 {
     if n <= 1 {
@@ -239,11 +235,11 @@ fn main() {
         result_fib_golden, duration_fib_golden
     );
 
-    // // Test for Fibonacci Calculation by Matrix Multiplication
-    // let start = Instant::now();
-    // let result_fib_matrix = fibonacci_by_matrix_multiplication(fib_index);
-    // let duration_fib_matrix = start.elapsed();
-    // println!("Fibonacci by Matrix Multiplication: {}, Time: {:?}", result_fib_matrix, duration_fib_matrix);
+    // Test for Fibonacci Calculation by Matrix Multiplication
+    let start = Instant::now();
+    let result_fib_matrix = fibonacci_by_matrix_multiplication(fib_index);
+    let duration_fib_matrix = start.elapsed();
+    println!("Fibonacci by Matrix Multiplication: {}, Time: {:?}", result_fib_matrix, duration_fib_matrix);
 
     // Test for Prime Counting by Optimized Method
     let prime_limit = 10000;
