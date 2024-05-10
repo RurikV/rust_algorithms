@@ -73,6 +73,23 @@ where
     }
 }
 
+struct ArrayList<T> {
+    data: Vec<T>,
+}
+
+impl<T> DynamicArray<T> for ArrayList<T>
+where
+    T: Clone + Default,
+{
+    fn add(&mut self, item: T, index: usize) {
+        self.data.insert(index, item);
+    }
+
+    fn remove(&mut self, index: usize) -> T {
+        self.data.remove(index)
+    }
+}
+
 fn measure_performance<T>(array: &mut dyn DynamicArray<T>, size: usize)
 where
     T: Clone + Default,
@@ -98,6 +115,7 @@ fn main() {
     let mut vector_array: VectorArray<i32> = VectorArray { data: Vec::new() };
     let mut factor_array: FactorArray<i32> = FactorArray { data: Vec::new() };
     let mut matrix_array: MatrixArray<i32> = MatrixArray { data: Vec::new() };
+    let mut array_list: ArrayList<i32> = ArrayList { data: Vec::new() };
 
     println!("Testing SingleArray:");
     measure_performance(&mut single_array, 10000);
@@ -110,4 +128,7 @@ fn main() {
 
     println!("\nTesting MatrixArray:");
     measure_performance(&mut matrix_array, 10000);
+
+    println!("\nTesting ArrayList:");
+    measure_performance(&mut array_list, 10000);
 }
