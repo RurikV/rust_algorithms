@@ -41,3 +41,8 @@ path = "src/treap_tree.rs"
 name = "algo"
 path = "src/algo2.rs"
 
+[[bin]]
+name = "arrays"
+path = "src/arrays.rs"
+
+
