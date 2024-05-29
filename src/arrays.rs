@@ -68,7 +68,6 @@ where
     }
 }
 
-
 struct FactorArray<T> {
     data: Vec<T>,
     growth_factor: usize,
@@ -141,6 +140,66 @@ where
         self.blocks[block_index].remove(position)
     }
 }
+
+// Node structure for a singly linked list
+struct Node<T> {
+    value: T,
+    next: Option<Box<Node<T>>>,
+}
+
+pub struct LinkedList<T> {
+    head: Option<Box<Node<T>>>,
+    length: usize,
+}
+
+impl<T> LinkedList<T> {
+    pub fn new() -> Self {
+        LinkedList { head: None, length: 0 }
+    }
+}
+
+impl<T> DynamicArray<T> for LinkedList<T> {
+    fn add(&mut self, item: T, index: usize) {
+        if index > self.length {
+            return; // Out of bounds protection
+        }
+        let mut new_node = Box::new(Node { value: item, next: None });
+        if index == 0 {
+            new_node.next = self.head.take();
+            self.head = Some(new_node);
+        } else {
+            let mut cursor = &mut self.head;
+            for _ in 0..index - 1 {
+                cursor = &mut cursor.as_mut().unwrap().next;
+            }
+            new_node.next = cursor.as_mut().unwrap().next.take();
+            cursor.as_mut().unwrap().next = Some(new_node);
+        }
+        self.length += 1;
+    }
+
+    fn remove(&mut self, index: usize) -> T {
+        if index >= self.length {
+            panic!("Index out of bounds");
+        }
+        self.length -= 1;
+        if index == 0 {
+            return self.head.take().map(|node| {
+                self.head = node.next;
+                node.value
+            }).unwrap();
+        } else {
+            let mut cursor = &mut self.head;
+            for _ in 0..index - 1 {
+                cursor = &mut cursor.as_mut().unwrap().next;
+            }
+            cursor.as_mut().unwrap().next.take().map(|node| {
+                cursor.as_mut().unwrap().next = node.next;
+                node.value
+            }).unwrap()
+        }
+    }
+}
 struct ArrayList<T> {
     data: Vec<T>,
 }
@@ -181,8 +240,9 @@ where
 fn main() {
     let mut single_array: SingleArray<i32> = SingleArray::new();
     let mut vector_array: VectorArray<i32> = VectorArray::new();
-    let mut factor_array: FactorArray<i32> = FactorArray::new( 2 );
-    let mut matrix_array: MatrixArray<i32> = MatrixArray::new( 10 );
+    let mut factor_array: FactorArray<i32> = FactorArray::new(2);
+    let mut matrix_array: MatrixArray<i32> = MatrixArray::new(10);
+    let mut linked_list: LinkedList<i32> = LinkedList::new();
     let mut array_list: ArrayList<i32> = ArrayList { data: Vec::new() };
 
     println!("Testing SingleArray:");
@@ -196,6 +256,9 @@ fn main() {
 
     println!("\nTesting MatrixArray:");
     measure_performance(&mut matrix_array, 10000);
+
+    println!("\nTesting LinkedList:");
+    measure_performance(&mut linked_list, 10000);
 
     println!("\nTesting ArrayList:");
     measure_performance(&mut array_list, 10000);

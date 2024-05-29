@@ -45,4 +45,8 @@ path = "src/algo2.rs"
 name = "arrays"
 path = "src/arrays.rs"
 
+[[bin]]
+name = "allocator"
+path = "src/allocator.rs"
+
 
