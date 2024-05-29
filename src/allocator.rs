@@ -1,104 +1,105 @@
-
+use core::ptr;
 use core::mem;
 
-pub struct Alloc<'mem> {
-    remaining_mem: &'mem mut [u8],
+pub struct Allocator<'mem> {
+    remaining_memory: &'mem mut [u8],
 }
 
 #[rustfmt::skip]
-impl<'mem> Alloc<'mem> {
-
+impl<'mem> Allocator<'mem> {
     pub fn new(heap: &'mem mut [u8]) -> Self {
-        Alloc { remaining_mem: heap }
+        Allocator { remaining_memory: heap }
     }
 
-    pub fn alloc<'item, T>(&mut self, item: T) -> 
-     AllocResult<&'item mut T>
+
+    pub fn free<T>(&mut self, item: &'mem mut T) {
+        unsafe {
+            let ptr = item as *mut T as *mut u8;
+            let size = mem::size_of::<T>();
+            let remaining_mem = mem::take(&mut self.remaining_memory);
+            let (freed_mem, remaining_mem) = remaining_mem.split_at_mut(size);
+            ptr::copy_nonoverlapping(ptr, freed_mem.as_mut_ptr(), size);
+            self.remaining_memory = remaining_mem;
+        }
+    }
+
+    pub fn allocate<'item, T>(&mut self, item: T) -> AllocResult<&'item mut T>
     where
         'mem: 'item
     {
-        self.waste_some_mem_to_reach_align::<T>()?;
-
-        unsafe { self.alloc_aligned(item) }
+        self.align_memory::<T>()?;
+        unsafe { self.allocate_aligned(item) }
     }
 
-    fn waste_some_mem_to_reach_align<T>(&mut self) -> AllocResult<()> {
-
+    fn align_memory<T>(&mut self) -> AllocResult<()> {
         let align = mem::align_of::<T>();
-
-        let how_many_bytes_to_waste: usize = {
-
-            let remainig_memory_ptr = self.remaining_mem.as_ptr() as usize;
-
-            let mut temp = remainig_memory_ptr;
-
+        let bytes_to_skip: usize = {
+            let memory_ptr = self.remaining_memory.as_ptr() as usize;
+            let mut temp = memory_ptr;
             while temp % align != 0 {
-                temp += 1; // There is more efficient way
+                temp += 1; // There is a more efficient way
             }
-            temp - remainig_memory_ptr
+            temp - memory_ptr
         };
 
-        if self.remaining_mem.len() < how_many_bytes_to_waste {
+        if self.remaining_memory.len() < bytes_to_skip {
             return Err(OutOfMemory);
         }
 
-        let remaining_memory = mem::take(&mut self.remaining_mem);
-        let (_, remaining_memory) = remaining_memory.split_at_mut(how_many_bytes_to_waste);
-        self.remaining_mem = remaining_memory;
+        let remaining_mem = mem::take(&mut self.remaining_memory);
+        let (_, remaining_mem) = remaining_mem.split_at_mut(bytes_to_skip);
+        self.remaining_memory = remaining_mem;
 
         Ok(())
     }
 
-    // SAFETY: This function has to be called only after
-    // self.remaining_memory was aligned for T.
-    unsafe fn alloc_aligned<'item, T>(&mut self, item: T) -> AllocResult<&'item mut T>
+    // SAFETY: This function should only be called after
+    // self.remaining_memory has been aligned for T.
+    unsafe fn allocate_aligned<'item, T>(&mut self, item: T) -> AllocResult<&'item mut T>
     where
         'mem: 'item
     {
         let size = mem::size_of::<T>();
 
-        if self.remaining_mem.len() < size {
+        if self.remaining_memory.len() < size {
             return Err(OutOfMemory);
         }
 
-        let remaining_mem = mem::take(&mut self.remaining_mem);
-
-        let (almost_item_ref, remaining_memory) = remaining_mem.split_at_mut(size);
-
-        self.remaining_mem = remaining_memory;
+        let remaining_mem = mem::take(&mut self.remaining_memory);
+        let (item_memory, remaining_mem) = remaining_mem.split_at_mut(size);
+        self.remaining_memory = remaining_mem;
 
         let item_ref: &mut T = {
-            let almost_item_ptr = almost_item_ref as *mut [u8] as *mut T;
-
+            let item_ptr = item_memory as *mut [u8] as *mut T;
             unsafe {
-                core::ptr::write(almost_item_ptr, item);
-                &mut *almost_item_ptr // *mut T as &mut T
+                core::ptr::write(item_ptr, item);
+                &mut *item_ptr
             }
         };
         Ok(item_ref)
     }
 
-    pub fn alloc_array_from_fn<'arr, T>(
-        &mut self, size: usize, mut init_t: impl FnMut(usize) -> T
-    ) 
-            -> AllocResult<&'arr mut [T]>
-    where 'mem: 'arr {
+    pub fn allocate_array<'arr, T>(
+        &mut self,
+        size: usize,
+        mut init_item: impl FnMut(usize) -> T,
+    ) -> AllocResult<&'arr mut [T]>
+    where
+        'mem: 'arr,
+    {
+        self.align_memory::<T>()?;
 
-        self.waste_some_mem_to_reach_align::<T>()?;
-
-        if self.remaining_mem.len() < size {
+        if self.remaining_memory.len() < size {
             return Err(OutOfMemory);
         }
 
-        let arr_ptr = self.remaining_mem as *mut [u8] as *mut [T];
+        let array_ptr = self.remaining_memory as *mut [u8] as *mut [T];
 
         for i in 0..size {
-            let _ = unsafe { 
-                self.alloc_aligned(init_t(i)).unwrap_unchecked() 
-            };
-        };
+            let _ = unsafe { self.allocate_aligned(init_item(i)).unwrap_unchecked() };
+        }
 
-        Ok(&mut unsafe { &mut *arr_ptr }[0..size])
+        Ok(&mut unsafe { &mut *array_ptr }[0..size])
     }
 }
 
@@ -108,14 +109,13 @@ pub type AllocResult<T> = core::result::Result<T, OutOfMemory>;
 pub struct OutOfMemory;
 
 #[rustfmt::skip]
-pub fn count_primes(nums: &[u32], max_num: u32, alloc: &mut Alloc) -> usize {
-    
-    match FastPrimeTable::alloc_in(max_num, alloc) {
+pub fn count_primes(nums: &[u32], max_num: u32, allocator: &mut Allocator) -> usize {
+    match FastPrimeTable::allocate_in(max_num, allocator) {
         Ok(table) => return count_primes_with_table(nums, table),
         Err(OutOfMemory) => {}
     };
 
-    match SmallPrimeTable::alloc_in(max_num, alloc) {
+    match SmallPrimeTable::allocate_in(max_num, allocator) {
         Ok(table) => return count_primes_with_table(nums, table),
         Err(OutOfMemory) => {}
     };
@@ -136,20 +136,15 @@ struct SmallPrimeTable<'tab> {
 }
 
 impl<'tab> SmallPrimeTable<'tab> {
-    fn alloc_in<'mem>(max_num: u32, alloc: &mut Alloc<'mem>) -> AllocResult<Self>
+    fn allocate_in<'mem>(max_num: u32, allocator: &mut Allocator<'mem>) -> AllocResult<Self>
     where
         'mem: 'tab,
     {
         let n_primes = count_primes_until(max_num);
-
         let mut primes = RawPrimesIter::new();
+        let prime_table = allocator.allocate_array::<u32>(n_primes, |_| primes.next().unwrap())?;
 
-        let almost_prime_table =
-            alloc.alloc_array_from_fn::<u32>(n_primes, |_| primes.next().unwrap())?;
-
-        Ok(Self {
-            raw: almost_prime_table,
-        })
+        Ok(Self { raw: prime_table })
     }
 }
 
@@ -169,22 +164,26 @@ struct FastPrimeTable<'tab> {
     raw: &'tab [Primality],
 }
 
-enum Primality { Prime, Composite }
+enum Primality {
+    Prime,
+    Composite,
+}
 
 impl<'tab> FastPrimeTable<'tab> {
-    fn alloc_in<'mem>(max_num: u32, alloc: &mut Alloc<'mem>) -> AllocResult<Self>
+    fn allocate_in<'mem>(max_num: u32, allocator: &mut Allocator<'mem>) -> AllocResult<Self>
     where
         'mem: 'tab,
     {
-        let almost_prime_table = alloc.alloc_array_from_fn::<Primality>(
-            max_num as usize + 1, |_| Primality::Composite
+        let prime_table = allocator.allocate_array::<Primality>(
+            max_num as usize + 1,
+            |_| Primality::Composite,
         )?;
         for num in 0..=max_num {
             if is_prime_raw(num) {
-                almost_prime_table[num as usize] = Primality::Prime;
+                prime_table[num as usize] = Primality::Prime;
             }
         }
-        Ok(Self { raw: almost_prime_table })
+        Ok(Self { raw: prime_table })
     }
 }
 
@@ -242,85 +241,106 @@ fn is_prime_raw(num: u32) -> bool {
     is_prime_flag
 }
 
+use std::alloc::{alloc, dealloc, Layout};
+use std::time::Instant;
+
+const NUM_ITERATIONS: usize = 100_000;
+
+fn bench_custom_allocator(heap_size: usize) {
+    let mut heap: Vec<u8> = vec![0; heap_size];
+    let mut allocator = Allocator::new(&mut heap);
+
+    let start = Instant::now();
+    let mut success_count = 0;
+    for _ in 0..NUM_ITERATIONS {
+        let val = 42;
+        match allocator.allocate(val) {
+            Ok(allocated) => {
+                success_count += 1;
+                allocator.free(allocated);
+            }
+            Err(OutOfMemory) => break,
+        }
+    }
+    let elapsed = start.elapsed();
+    println!(
+        "Custom Allocator - Heap Size: {}, Successful Allocations: {}, Time: {:?}",
+        heap_size, success_count, elapsed
+    );
+}
+
+fn bench_std_allocator() {
+    let start = Instant::now();
+    for _ in 0..NUM_ITERATIONS {
+        let val = 42;
+        let layout = Layout::new::<i32>();
+        let ptr = unsafe { alloc(layout) as *mut i32 };
+        unsafe {
+            std::ptr::write(ptr, val);
+            dealloc(ptr as *mut u8, layout);
+        }
+    }
+    let elapsed = start.elapsed();
+    println!("Standard Allocator - Time: {:?}", elapsed);
+}
+
+
 #[rustfmt::skip]
 #[cfg(test)]
 mod test {
-
     use super::*;
 
     #[test]
     fn works_with_bytes() {
         let mut pseudo_heap: [u8; 4] = core::array::from_fn(|_| 9);
+        let mut allocator = Allocator::new(&mut pseudo_heap);
 
-        let mut alloc = Alloc::new(&mut pseudo_heap);
+        allocator.allocate::<u8>(1).unwrap();
+        allocator.allocate::<u8>(2).unwrap();
 
-        alloc.alloc::<u8>(1).unwrap();
-        alloc.alloc::<u8>(2).unwrap();
-
-        assert_eq!(pseudo_heap, [1, 2, 9, 9])
+        assert_eq!(pseudo_heap, [1, 2, 9, 9]);
     }
 
     #[test]
     fn works_with_i64() {
         let mut pseudo_heap: [u8; 32] = core::array::from_fn(|_| 9);
+        let mut allocator = Allocator::new(&mut pseudo_heap);
 
-        let mut alloc = Alloc::new(&mut pseudo_heap);
+        let _ = allocator.allocate::<i64>(1).unwrap();
+        let _ = allocator.allocate::<i64>(2).unwrap();
 
-        let _ = alloc.alloc::<i64>(1).unwrap();
-        let _ = alloc.alloc::<i64>(2).unwrap();
-
-        assert_eq!(pseudo_heap, 
+        assert_eq!(
+            pseudo_heap,
             [
-                1, 0, 0, 0, 0, 0, 0, 0,
-                2, 0, 0, 0, 0, 0, 0, 0,
-                9, 9, 9, 9, 9, 9, 9, 9,
-                9, 9, 9, 9, 9, 9, 9, 9,
+                1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 9,
             ]
         );
     }
 
     #[test]
     fn works_with_alignment() {
-
         let mut pseudo_heap: [u8; 16] = core::array::from_fn(|_| 9);
+        let mut allocator = Allocator::new(&mut pseudo_heap);
 
-        let mut alloc = Alloc::new(&mut pseudo_heap);
-
-        let u8_addr = alloc.alloc::<u8>(1).unwrap();
+        let u8_addr = allocator.allocate::<u8>(1).unwrap();
 
         assert!(u8_addr as *mut u8 as usize % 2 == 0);
 
-        let _ = alloc.alloc::<u16>(2).unwrap();
+        let _ = allocator.allocate::<u16>(2).unwrap();
 
-        assert_eq!(pseudo_heap,
-            [
-                1, 9, 2, 0,
-                9, 9, 9, 9,
-                9, 9, 9, 9,
-                9, 9, 9, 9,
-            ]
-        );
+        assert_eq!(pseudo_heap, [1, 9, 2, 0, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]);
     }
 
     #[test]
     fn works_with_arrays() {
-
         let mut pseudo_heap: [u8; 16] = core::array::from_fn(|_| 9);
+        let mut allocator = Allocator::new(&mut pseudo_heap);
 
-        let mut alloc = Alloc::new(&mut pseudo_heap);
+        let _ = allocator.allocate::<u8>(1).unwrap();
+        let _ = allocator.allocate_array::<u16>(3, |_| 2).unwrap();
 
-        let _ = alloc.alloc::<u8>(1).unwrap();
-
-        let _  = alloc.alloc_array_from_fn::<u16>(3, |_| 2).unwrap();
-
-        assert_eq!(pseudo_heap,
-            [
-                1, 9, 2, 0,
-                2, 0, 2, 0,
-                9, 9, 9, 9,
-                9, 9, 9, 9,
-            ]
-        );
+        assert_eq!(pseudo_heap, [1, 9, 2, 0, 2, 0, 2, 0, 9, 9, 9, 9, 9, 9, 9, 9]);
     }
 
     #[test]
@@ -386,9 +406,9 @@ mod test {
     #[test]
     fn small_primes_table_test() {
         let mut heap: [u8; 1024] = core::array::from_fn(|_| 0);
-        let mut alloc = Alloc::new(&mut heap);
+        let mut allocator = Allocator::new(&mut heap);
 
-        let table = SmallPrimeTable::alloc_in(50, &mut alloc).unwrap();
+        let table = SmallPrimeTable::allocate_in(50, &mut allocator).unwrap();
 
         assert!(!table.is_prime(0));
         assert!(!table.is_prime(1));
@@ -409,9 +429,9 @@ mod test {
     #[test]
     fn fast_primes_table_test() {
         let mut heap: [u8; 2048] = core::array::from_fn(|_| 0);
-        let mut alloc = Alloc::new(&mut heap);
+        let mut allocator = Allocator::new(&mut heap);
 
-        let table = FastPrimeTable::alloc_in(50, &mut alloc).unwrap();
+        let table = FastPrimeTable::allocate_in(50, &mut allocator).unwrap();
 
         assert!(!table.is_prime(0));
         assert!(!table.is_prime(1));
@@ -432,12 +452,10 @@ mod test {
     #[test]
     fn count_primes_test() {
         let mut heap: [u8; 1024] = core::array::from_fn(|_| 0);
-
-        let mut alloc = Alloc::new(&mut heap);
+        let mut allocator = Allocator::new(&mut heap);
 
         let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-
-        let n_primes = count_primes(&nums, 11, &mut alloc);
+        let n_primes = count_primes(&nums, 11, &mut allocator);
 
         assert_eq!(n_primes, 5);
     }
@@ -445,47 +463,44 @@ mod test {
     #[test]
     fn count_primes_multiple_test() {
         let mut heap: [u8; 1024] = core::array::from_fn(|_| 0);
-
-        let mut alloc = Alloc::new(&mut heap);
+        let mut allocator = Allocator::new(&mut heap);
 
         let nums = [1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 7, 8, 9, 10, 11];
-
-        let n_primes = count_primes(&nums, 11, &mut alloc);
+        let n_primes = count_primes(&nums, 11, &mut allocator);
 
         assert_eq!(n_primes, 7);
-    }
-
-    #[test]
-    fn bench_ways() {
-        
     }
 }
 
 fn main() {
     print_allocated_after_alloc_was_dropped();
     visualize_layout();
+
+    bench_custom_allocator(1024);
+    bench_custom_allocator(2048);
+    bench_custom_allocator(4096);
+    bench_std_allocator();
 }
 
 pub fn visualize_layout() {
     let mut heap: [u8; 64] = std::array::from_fn(|_| 9);
+    let mut allocator = Allocator::new(&mut heap);
 
-    let mut alloc = Alloc::new(&mut heap);
-
-    let _: &u8 = alloc.alloc(8).unwrap();
-    let _: &u64 = alloc.alloc(64).unwrap();
-    let _: &u16 = alloc.alloc(16).unwrap();
-    let _: &u32 = alloc.alloc(32).unwrap();
+    let _: &u8 = allocator.allocate(8).unwrap();
+    let _: &u64 = allocator.allocate(64).unwrap();
+    let _: &u16 = allocator.allocate(16).unwrap();
+    let _: &u32 = allocator.allocate(32).unwrap();
 
     println!("heap: {:?}", heap);
 }
 
 fn print_allocated_after_alloc_was_dropped() {
     let mut heap: [u8; 32] = Default::default();
-    let mut alloc = Alloc::new(&mut heap);
+    let mut allocator = Allocator::new(&mut heap);
 
-    let allocated_num = alloc.alloc::<u32>(873).unwrap();
+    let allocated_num = allocator.allocate::<u32>(873).unwrap();
 
-    drop(alloc);
+    drop(allocator);
 
     println!("num: {allocated_num}");
 }
