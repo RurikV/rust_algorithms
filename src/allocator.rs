@@ -53,8 +53,9 @@ impl<'mem> Allocator<'mem> {
         Ok(())
     }
 
-    // SAFETY: This function should only be called after
-    // self.remaining_memory has been aligned for T.
+    // SAFETY: This function assumes that self.remaining_memory has been properly aligned for the type T.
+    // It should only be called after ensuring the memory alignment using a function like align_memory.
+    // Failing to ensure proper alignment may lead to undefined behavior.
     unsafe fn allocate_aligned<'item, T>(&mut self, item: T) -> AllocResult<&'item mut T>
     where
         'mem: 'item
@@ -243,47 +244,68 @@ fn is_prime_raw(num: u32) -> bool {
 
 use std::alloc::{alloc, dealloc, Layout};
 use std::time::Instant;
+use rand::Rng;
 
-const NUM_ITERATIONS: usize = 100_000;
+const NUM_ITERATIONS: usize = 2_000_000;
 
 fn bench_custom_allocator(heap_size: usize) {
-    let mut heap: Vec<u8> = vec![0; heap_size];
+    let mut heap: Vec<u8> = vec![0; heap_size * 8];
     let mut allocator = Allocator::new(&mut heap);
+    let mut rng = rand::thread_rng();
 
     let start = Instant::now();
     let mut success_count = 0;
+
     for _ in 0..NUM_ITERATIONS {
-        let val = 42;
+        let val = rng.gen::<i32>();
         match allocator.allocate(val) {
             Ok(allocated) => {
                 success_count += 1;
                 allocator.free(allocated);
             }
-            Err(OutOfMemory) => break,
+            Err(OutOfMemory) => {
+                //println!("OutOfMemory");
+                break;
+            }
         }
     }
+
     let elapsed = start.elapsed();
     println!(
         "Custom Allocator - Heap Size: {}, Successful Allocations: {}, Time: {:?}",
-        heap_size, success_count, elapsed
+        heap_size * 8, success_count, elapsed
     );
 }
 
-fn bench_std_allocator() {
+fn bench_std_allocator(heap_size: usize) {
+    let mut heap: Vec<u8> = vec![0; heap_size * 4];
     let start = Instant::now();
+    let mut success_count = 0;
+    let mut rng = rand::thread_rng();
+
     for _ in 0..NUM_ITERATIONS {
-        let val = 42;
-        let layout = Layout::new::<i32>();
-        let ptr = unsafe { alloc(layout) as *mut i32 };
+        let val = rng.gen::<i32>();
+        //let layout = Layout::new::<i32>();
+        let ptr = heap.as_mut_ptr() as *mut u8;
+
+        if success_count * std::mem::size_of::<i32>() >= heap_size * 4 {
+            //println!("OutOfMemory");
+            break;
+        }
+
+        success_count += 1;
+
         unsafe {
-            std::ptr::write(ptr, val);
-            dealloc(ptr as *mut u8, layout);
+            std::ptr::write(ptr.add(success_count * std::mem::size_of::<i32>()) as *mut i32, val);
         }
     }
-    let elapsed = start.elapsed();
-    println!("Standard Allocator - Time: {:?}", elapsed);
-}
 
+    let elapsed = start.elapsed();
+    println!(
+        "Standard Allocator - Heap Size: {}, Successful Allocations: {}, Time: {:?}",
+        heap_size * 4, success_count, elapsed
+    );
+}
 
 #[rustfmt::skip]
 #[cfg(test)]
@@ -476,10 +498,12 @@ fn main() {
     print_allocated_after_alloc_was_dropped();
     visualize_layout();
 
-    bench_custom_allocator(1024);
-    bench_custom_allocator(2048);
-    bench_custom_allocator(4096);
-    bench_std_allocator();
+    let heap_sizes = [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576];
+
+    for size in &heap_sizes {
+        bench_custom_allocator(*size);
+        bench_std_allocator(*size);
+    }
 }
 
 pub fn visualize_layout() {

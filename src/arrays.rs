@@ -1,3 +1,4 @@
+use std::ops::{Deref, DerefMut};
 use std::time::Instant;
 
 trait DynamicArray<T> {
@@ -6,7 +7,9 @@ trait DynamicArray<T> {
 }
 
 struct SingleArray<T> {
-    data: Vec<T>,
+    array: *mut T,
+    capacity: usize,
+    length: usize,
 }
 
 impl<T> SingleArray<T>
@@ -14,7 +17,56 @@ where
     T: Clone + Default,
 {
     fn new() -> Self {
-        Self { data: Vec::new() }
+        Self {
+            array: std::ptr::null_mut(),
+            capacity: 0,
+            length: 0,
+        }
+    }
+
+    fn resize(&mut self) {
+        let new_capacity = if self.capacity == 0 {
+            1
+        } else {
+            self.capacity * 2
+        };
+        let new_array = unsafe {
+            let layout = std::alloc::Layout::array::<T>(new_capacity).unwrap();
+            let ptr = std::alloc::alloc(layout) as *mut T;
+            if !self.array.is_null() {
+                std::ptr::copy_nonoverlapping(self.array, ptr, self.length);
+                let old_layout = std::alloc::Layout::array::<T>(self.capacity).unwrap();
+                std::alloc::dealloc(self.array as *mut u8, old_layout);
+            }
+            ptr
+        };
+        self.array = new_array;
+        self.capacity = new_capacity;
+    }
+}
+
+impl<T> Drop for SingleArray<T> {
+    fn drop(&mut self) {
+        if !self.array.is_null() {
+            unsafe {
+                let layout = std::alloc::Layout::array::<T>(self.capacity).unwrap();
+                std::alloc::dealloc(self.array as *mut u8, layout);
+            }
+        }
+    }
+}
+
+impl<T> Deref for SingleArray<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::slice::from_raw_parts(self.array, self.length) }
+    }
+}
+
+impl<T> DerefMut for SingleArray<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::slice::from_raw_parts_mut(self.array, self.length) }
     }
 }
 
@@ -23,157 +75,17 @@ where
     T: Clone + Default,
 {
     fn add(&mut self, item: T, index: usize) {
-        let mut new_data = Vec::with_capacity(self.data.len() + 1);
-        new_data.extend(self.data.iter().cloned().take(index));
-        new_data.push(item);
-        new_data.extend(self.data.iter().cloned().skip(index));
-        self.data = new_data;
-    }
-
-    fn remove(&mut self, index: usize) -> T {
-        let mut new_data = Vec::with_capacity(self.data.len() - 1);
-        let removed_item = self.data.remove(index);
-        new_data.extend(self.data.iter().cloned());
-        self.data = new_data;
-        removed_item
-    }
-}
-
-struct VectorArray<T> {
-    data: Vec<T>,
-}
-
-impl<T> VectorArray<T>
-where
-    T: Clone + Default,
-{
-    fn new() -> Self {
-        Self { data: Vec::new() }
-    }
-}
-
-impl<T> DynamicArray<T> for VectorArray<T>
-where
-    T: Clone + Default,
-{
-    fn add(&mut self, item: T, index: usize) {
-        if self.data.len() == self.data.capacity() {
-            self.data.reserve(self.data.len()); // Double the capacity
-        }
-        self.data.insert(index, item);
-    }
-
-    fn remove(&mut self, index: usize) -> T {
-        self.data.remove(index)
-    }
-}
-
-struct FactorArray<T> {
-    data: Vec<T>,
-    growth_factor: usize,
-}
-
-impl<T> FactorArray<T>
-where
-    T: Clone + Default,
-{
-    fn new(growth_factor: usize) -> Self {
-        Self {
-            data: Vec::with_capacity(growth_factor),
-            growth_factor,
-        }
-    }
-}
-
-impl<T> DynamicArray<T> for FactorArray<T>
-where
-    T: Clone + Default,
-{
-    fn add(&mut self, item: T, index: usize) {
-        if self.data.capacity() == self.data.len() {
-            self.data.reserve(self.growth_factor * self.data.capacity());
-        }
-        self.data.insert(index, item);
-    }
-
-    fn remove(&mut self, index: usize) -> T {
-        self.data.remove(index)
-    }
-}
-
-struct MatrixArray<T> {
-    blocks: Vec<Vec<T>>,
-    block_size: usize,
-}
-
-impl<T> MatrixArray<T>
-where
-    T: Clone + Default,
-{
-    fn new(block_size: usize) -> Self {
-        Self {
-            blocks: Vec::new(),
-            block_size,
-        }
-    }
-}
-
-impl<T> DynamicArray<T> for MatrixArray<T>
-where
-    T: Clone + Default,
-{
-    fn add(&mut self, item: T, index: usize) {
-        // This is a simplified version and doesn't handle all edge cases
-        let block_index = index / self.block_size;
-        let position = index % self.block_size;
-
-        if block_index >= self.blocks.len() {
-            self.blocks.push(Vec::with_capacity(self.block_size));
-        }
-
-        self.blocks[block_index].insert(position, item);
-    }
-
-    fn remove(&mut self, index: usize) -> T {
-        let block_index = index / self.block_size;
-        let position = index % self.block_size;
-        self.blocks[block_index].remove(position)
-    }
-}
-
-// Node structure for a singly linked list
-struct Node<T> {
-    value: T,
-    next: Option<Box<Node<T>>>,
-}
-
-pub struct LinkedList<T> {
-    head: Option<Box<Node<T>>>,
-    length: usize,
-}
-
-impl<T> LinkedList<T> {
-    pub fn new() -> Self {
-        LinkedList { head: None, length: 0 }
-    }
-}
-
-impl<T> DynamicArray<T> for LinkedList<T> {
-    fn add(&mut self, item: T, index: usize) {
         if index > self.length {
-            return; // Out of bounds protection
+            panic!("Index out of bounds");
         }
-        let mut new_node = Box::new(Node { value: item, next: None });
-        if index == 0 {
-            new_node.next = self.head.take();
-            self.head = Some(new_node);
-        } else {
-            let mut cursor = &mut self.head;
-            for _ in 0..index - 1 {
-                cursor = &mut cursor.as_mut().unwrap().next;
-            }
-            new_node.next = cursor.as_mut().unwrap().next.take();
-            cursor.as_mut().unwrap().next = Some(new_node);
+        if self.length == self.capacity {
+            self.resize();
+        }
+        unsafe {
+            let src = self.array.add(index);
+            let dst = src.add(1);
+            std::ptr::copy(src, dst, self.length - index);
+            std::ptr::write(src, item);
         }
         self.length += 1;
     }
@@ -182,38 +94,166 @@ impl<T> DynamicArray<T> for LinkedList<T> {
         if index >= self.length {
             panic!("Index out of bounds");
         }
-        self.length -= 1;
-        if index == 0 {
-            return self.head.take().map(|node| {
-                self.head = node.next;
-                node.value
-            }).unwrap();
-        } else {
-            let mut cursor = &mut self.head;
-            for _ in 0..index - 1 {
-                cursor = &mut cursor.as_mut().unwrap().next;
-            }
-            cursor.as_mut().unwrap().next.take().map(|node| {
-                cursor.as_mut().unwrap().next = node.next;
-                node.value
-            }).unwrap()
+        unsafe {
+            let removed_item = std::ptr::read(self.array.add(index));
+            let src = self.array.add(index + 1);
+            let dst = self.array.add(index);
+            std::ptr::copy(src, dst, self.length - index - 1);
+            self.length -= 1;
+            removed_item
         }
     }
 }
-struct ArrayList<T> {
-    data: Vec<T>,
+struct VectorArray<T, const N: usize> {
+    data: [T; N],
+    length: usize,
 }
 
-impl<T> DynamicArray<T> for ArrayList<T>
+impl<T, const N: usize> VectorArray<T, N>
+where
+    T: Clone + Default + Copy,
+{
+    fn new() -> Self {
+        Self {
+            data: [T::default(); N],
+            length: 0,
+        }
+    }
+}
+
+impl<T, const N: usize> DynamicArray<T> for VectorArray<T, N>
 where
     T: Clone + Default,
 {
     fn add(&mut self, item: T, index: usize) {
-        self.data.insert(index, item);
+        if index > self.length {
+            return;
+        }
+        if self.length == N {
+            panic!("Array is full");
+        }
+        for i in (index + 1..=self.length).rev() {
+            self.data[i] = self.data[i - 1].clone();
+        }
+        self.data[index] = item;
+        self.length += 1;
     }
 
     fn remove(&mut self, index: usize) -> T {
-        self.data.remove(index)
+        if index >= self.length {
+            panic!("Index out of bounds");
+        }
+        let removed_item = self.data[index].clone();
+        for i in index..self.length - 1 {
+            self.data[i] = self.data[i + 1].clone();
+        }
+        self.length -= 1;
+        removed_item
+    }
+}
+
+struct FactorArray<T, const N: usize> {
+    data: [T; N],
+    length: usize,
+}
+
+impl<T, const N: usize> FactorArray<T, N>
+where
+    T: Clone + Default + Copy,
+{
+    fn new() -> Self {
+        Self {
+            data: [T::default(); N],
+            length: 0,
+        }
+    }
+}
+
+impl<T, const N: usize> DynamicArray<T> for FactorArray<T, N>
+where
+    T: Clone + Default,
+{
+    fn add(&mut self, item: T, index: usize) {
+        if index > self.length {
+            return;
+        }
+        if self.length == N {
+            panic!("Array is full");
+        }
+        for i in (index + 1..=self.length).rev() {
+            self.data[i] = self.data[i - 1].clone();
+        }
+        self.data[index] = item;
+        self.length += 1;
+    }
+
+    fn remove(&mut self, index: usize) -> T {
+        if index >= self.length {
+            panic!("Index out of bounds");
+        }
+        let removed_item = self.data[index].clone();
+        for i in index..self.length - 1 {
+            self.data[i] = self.data[i + 1].clone();
+        }
+        self.length -= 1;
+        removed_item
+    }
+}
+
+struct MatrixArray<T, const N: usize, const M: usize> {
+    blocks: [[T; N]; M],
+    lengths: [usize; M],
+}
+
+impl<T, const N: usize, const M: usize> MatrixArray<T, N, M>
+where
+    T: Clone + Default + Copy, 
+{
+    fn new() -> Self {
+        Self {
+            blocks: [[T::default(); N]; M],
+            lengths: [0; M],
+        }
+    }
+}
+
+impl<T, const N: usize, const M: usize> DynamicArray<T> for MatrixArray<T, N, M>
+where
+    T: Clone + Default,
+{
+    fn add(&mut self, item: T, index: usize) {
+        let block_index = index / N;
+        let position = index % N;
+
+        if block_index >= M {
+            return;
+        }
+
+        if self.lengths[block_index] == N {
+            panic!("Block is full");
+        }
+
+        for i in (position + 1..=self.lengths[block_index]).rev() {
+            self.blocks[block_index][i] = self.blocks[block_index][i - 1].clone();
+        }
+        self.blocks[block_index][position] = item;
+        self.lengths[block_index] += 1;
+    }
+
+    fn remove(&mut self, index: usize) -> T {
+        let block_index = index / N;
+        let position = index % N;
+
+        if block_index >= M || position >= self.lengths[block_index] {
+            panic!("Index out of bounds");
+        }
+
+        let removed_item = self.blocks[block_index][position].clone();
+        for i in position..self.lengths[block_index] - 1 {
+            self.blocks[block_index][i] = self.blocks[block_index][i + 1].clone();
+        }
+        self.lengths[block_index] -= 1;
+        removed_item
     }
 }
 
@@ -238,28 +278,22 @@ where
 }
 
 fn main() {
+    const SIZE: usize = 10_000;
+    const BLOCK_SIZE: usize = 1_000;
     let mut single_array: SingleArray<i32> = SingleArray::new();
-    let mut vector_array: VectorArray<i32> = VectorArray::new();
-    let mut factor_array: FactorArray<i32> = FactorArray::new(2);
-    let mut matrix_array: MatrixArray<i32> = MatrixArray::new(10);
-    let mut linked_list: LinkedList<i32> = LinkedList::new();
-    let mut array_list: ArrayList<i32> = ArrayList { data: Vec::new() };
+    let mut vector_array: VectorArray<i32, SIZE> = VectorArray::new();
+    let mut factor_array: FactorArray<i32, SIZE> = FactorArray::new();
+    let mut matrix_array: MatrixArray<i32, 10, BLOCK_SIZE> = MatrixArray::new();
 
     println!("Testing SingleArray:");
-    measure_performance(&mut single_array, 10000);
+    measure_performance(&mut single_array, SIZE);
 
     println!("\nTesting VectorArray:");
-    measure_performance(&mut vector_array, 10000);
+    measure_performance(&mut vector_array, SIZE);
 
     println!("\nTesting FactorArray:");
-    measure_performance(&mut factor_array, 10000);
+    measure_performance(&mut factor_array, SIZE);
 
     println!("\nTesting MatrixArray:");
-    measure_performance(&mut matrix_array, 10000);
-
-    println!("\nTesting LinkedList:");
-    measure_performance(&mut linked_list, 10000);
-
-    println!("\nTesting ArrayList:");
-    measure_performance(&mut array_list, 10000);
+    measure_performance(&mut matrix_array, SIZE);
 }
