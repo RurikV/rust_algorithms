@@ -1,10 +1,17 @@
 use std::ops::{Deref, DerefMut};
 use std::time::Instant;
+use rand::Rng; 
 
 trait DynamicArray<T> {
     fn add(&mut self, item: T, index: usize);
     fn remove(&mut self, index: usize) -> T;
     fn size(&self) -> usize;
+    fn get(&self, index: usize) -> &T;
+    fn reset(&mut self) {
+        while self.size() > 0 {
+            self.remove(0);
+        }
+    }
 }
 
 struct SingleArray<T> {
@@ -108,6 +115,13 @@ where
     
     fn size(&self) -> usize {
         self.length
+    }
+
+    fn get(&self, index: usize) -> &T {
+        if index >= self.length {
+            panic!("Index out of bounds");
+        }
+        unsafe { &*self.array.add(index) }
     }
 }
 
@@ -226,6 +240,13 @@ where
     fn size(&self) -> usize {
         self.length
     }
+
+    fn get(&self, index: usize) -> &T {
+        if index >= self.length {
+            panic!("Index out of bounds");
+        }
+        unsafe { &*self.array.add(index) }
+    }
 }
 
 struct FactorArray<T> {
@@ -336,6 +357,13 @@ where
     
     fn size(&self) -> usize {
         self.length
+    }
+
+    fn get(&self, index: usize) -> &T {
+        if index >= self.length {
+            panic!("Index out of bounds");
+        }
+        unsafe { &*self.array.add(index) }
     }
 }
 
@@ -470,6 +498,13 @@ where
     fn size(&self) -> usize {
         self.length
     }
+
+    fn get(&self, index: usize) -> &T {
+        if index >= self.length {
+            panic!("Index out of bounds");
+        }
+        unsafe { &*self.array.add(index) }
+    }
 }
 
 impl<T> DynamicArray<T> for MatrixArray<T>
@@ -497,68 +532,140 @@ where
     fn size(&self) -> usize {
         self.size
     }
+ 
+    fn get(&self, index: usize) -> &T {
+        if index >= self.size {
+            panic!("Index out of bounds");
+        }
+        let block_index = index / self.vector;
+        let position = index % self.vector;
+        &self.array[block_index][position]
+    }
 }
 
-fn measure_performance<T>(array: &mut dyn DynamicArray<T>, size: usize)
+fn measure_performance<T>(array: &mut dyn DynamicArray<T>, size: usize, name: &str, first_row: bool)
 where
     T: Clone + Default,
 {
+    let mut rng = rand::thread_rng();
+
+    // Inserts into first position
+    array.reset();
     let start_add_start = Instant::now();
-    for i in 0..size {
-        array.add(T::default(), i);
+    for _i in 0..size {
+        array.add(T::default(), 0);
     }
     let duration_add_start = start_add_start.elapsed();
 
+    // Inserts into random position
+    array.reset();
+    let mut ixes: Vec<usize> = (0..size).collect();
+    for i in 0..size {
+        ixes[i] = rng.gen_range(0..=i);
+    }
+    let start_add_random = Instant::now();
+    for &ix in &ixes {
+        array.add(T::default(), ix);
+    }
+    let duration_add_random = start_add_random.elapsed();
+
+    // Inserts into last position
+    array.reset();
     let start_add_end = Instant::now();
-    array.add(T::default(), size);
+    for _i in 0..size {
+        array.add(T::default(), array.size());
+    }
     let duration_add_end = start_add_end.elapsed();
 
+
+    // Reads from first position
+    let start_read_start = Instant::now();
+    for _i in 0..size {
+        let _ = array.get(0);
+    }
+    let duration_read_start = start_read_start.elapsed();
+
+    // Reads from random position
+    let start_read_random = Instant::now();
+    for _i in 0..size {
+        let random_index = rng.gen_range(0..array.size());
+        let _ = array.get(random_index);
+    }
+    let duration_read_random = start_read_random.elapsed();
+
+    // Reads from last position
+    let start_read_end = Instant::now();
+    for _i in 0..size {
+        let _ = array.get(array.size() - 1);
+    }
+    let duration_read_end = start_read_end.elapsed();
+
+    // Removes from first position
     let start_remove_start = Instant::now();
-    if array.size() > 0 {
+    for _i in 0..size {
         array.remove(0);
     }
     let duration_remove_start = start_remove_start.elapsed();
 
+    // Removes from random position
+    for _i in 0..size {
+        array.add(T::default(), 0);
+    }
+    let start_remove_random = Instant::now();
+    for _i in 0..size {
+        let random_index = rng.gen_range(0..array.size());
+        array.remove(random_index);
+    }
+    let duration_remove_random = start_remove_random.elapsed();
+
+    // Removes from last position
+    for _i in 0..size {
+        array.add(T::default(), 0);
+    }
     let start_remove_end = Instant::now();
-    if array.size() > 0 {
+    for _i in 0..size {
         array.remove(array.size() - 1);
     }
     let duration_remove_end = start_remove_end.elapsed();
 
-    println!("| {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} |",
-             "Insertion",
-             "Insertion",
-             "Insertion",
-             "Reading",
-             "Reading",
-             "Reading",
-             "Deletion",
-             "Deletion",
-             "Deletion");
-    println!("| {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} |",
-             "start",
-             "random",
-             "end",
-             "start",
-             "random",
-             "end",
-             "start",
-             "random",
-             "end");
-    println!("|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|");
-    println!("| {:>12} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} |",
-             format!("{:?}", duration_add_start),
-             format!("{:?}", duration_add_end),
-             "N/A",
-             "N/A",
-             "N/A",
-             "N/A",
-             format!("{:?}", duration_remove_start),
-             "N/A",
-             format!("{:?}", duration_remove_end));
-    println!("|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|");
-}
+    if first_row {
+        println!("| {:15} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} |",
+                 "Collection",
+                 "Insertion",
+                 "Insertion",
+                 "Insertion",
+                 "Reading",
+                 "Reading",
+                 "Reading",
+                 "Deletion",
+                 "Deletion",
+                 "Deletion");
+        println!("| {:15} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} | {:12} |",
+                 "",
+                 "start",
+                 "random",
+                 "end",
+                 "start",
+                 "random",
+                 "end",
+                 "start",
+                 "random",
+                 "end");
+        println!("|-----------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|");
+    }
 
+    println!("| {:15} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} | {:>12} |",
+             name,
+             format!("{:?}", duration_add_start),
+             format!("{:?}", duration_add_random),
+             format!("{:?}", duration_add_end),
+             format!("{:?}", duration_read_start),
+             format!("{:?}", duration_read_random),
+             format!("{:?}", duration_read_end),
+             format!("{:?}", duration_remove_start),
+             format!("{:?}", duration_remove_random),
+             format!("{:?}", duration_remove_end));
+}
 fn main() {
     const SIZE: usize = 100_000;
     let mut single_array: SingleArray<i32> = SingleArray::new();
@@ -567,18 +674,9 @@ fn main() {
     let mut matrix_array: MatrixArray<i32> = MatrixArray::with_default();
     let mut array_list: ArrayList<i32> = ArrayList::with_default();
 
-    println!("Testing SingleArray:");
-    measure_performance(&mut single_array, SIZE);
-
-    println!("\nTesting VectorArray:");
-    measure_performance(&mut vector_array, SIZE);
-
-    println!("\nTesting FactorArray:");
-    measure_performance(&mut factor_array, SIZE);
-
-    println!("\nTesting MatrixArray:");
-    measure_performance(&mut matrix_array, SIZE);
-
-    println!("\nTesting ArrayList:");
-    measure_performance(&mut array_list, SIZE);
+    measure_performance(&mut single_array, SIZE, "SingleArray", true);
+    measure_performance(&mut vector_array, SIZE, "VectorArray", false);
+    measure_performance(&mut factor_array, SIZE, "FactorArray", false);
+    measure_performance(&mut matrix_array, SIZE, "MatrixArray", false);
+    measure_performance(&mut array_list, SIZE, "ArrayList", false);
 }
