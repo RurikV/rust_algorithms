@@ -367,30 +367,6 @@ where
     }
 }
 
-struct MatrixArray<T> {
-    size: usize,
-    vector: usize,
-    array: SingleArray<VectorArray<T>>,
-}
-
-impl<T> MatrixArray<T>
-where
-    T: Clone + Default,
-{
-    fn new(vector: usize) -> Self {
-        Self {
-            size: 0,
-            vector,
-            array: SingleArray::new(),
-        }
-    }
-
-    fn with_default() -> Self {
-        Self::new(10)
-    }
-
-}
-
 struct ArrayList<T> {
     array: *mut T,
     capacity: usize,
@@ -507,13 +483,37 @@ where
     }
 }
 
+struct MatrixArray<T> {
+    size: usize,
+    vector: usize,
+    array: SingleArray<VectorArray<T>>,
+}
+
+impl<T> MatrixArray<T>
+where
+    T: Clone + Default,
+{
+    fn new(vector: usize) -> Self {
+        Self {
+            size: 0,
+            vector,
+            array: SingleArray::new(),
+        }
+    }
+
+    fn with_default() -> Self {
+        Self::new(10)
+    }
+
+}
+
 impl<T> DynamicArray<T> for MatrixArray<T>
 where
     T: Clone + Default,
 {
     fn add(&mut self, item: T, index: usize) {
         if self.size == self.array.size() * self.vector {
-            self.array.add(VectorArray::new(self.vector), self.array.size());
+            self.array.add(VectorArray::with_default(), self.array.size());
         }
         let block_index = index / self.vector;
         let position = index % self.vector;
@@ -674,9 +674,9 @@ fn main() {
     let mut matrix_array: MatrixArray<i32> = MatrixArray::with_default();
     let mut array_list: ArrayList<i32> = ArrayList::with_default();
 
+    measure_performance(&mut matrix_array, SIZE, "MatrixArray", false);
     measure_performance(&mut single_array, SIZE, "SingleArray", true);
     measure_performance(&mut vector_array, SIZE, "VectorArray", false);
     measure_performance(&mut factor_array, SIZE, "FactorArray", false);
-    measure_performance(&mut matrix_array, SIZE, "MatrixArray", false);
     measure_performance(&mut array_list, SIZE, "ArrayList", false);
 }
