@@ -54,5 +54,32 @@ path = "src/allocator.rs"
 name = "heap_alloc"
 path = "src/heap_alloc.rs"
 
+# [lib]
+# name = "arrays"
+# path = "src/arrays/mod.rs"
+
+[[bin]]
+name = "array_main"
+path = "src/array_main.rs"
+
+[[bin]]
+name = "array_queue"
+path = "src/array_queue.rs"
+
+[[bin]]
+name = "arrays_"
+path = "src/arrays_.rs"
+
+[[bin]]
+name = "arraygpt"
+path = "src/arraygpt.rs"
+
+[[bin]]
+name = "arrays_debug"
+path = "src/arrays_debug.rs"
+
+
+
+
 
 

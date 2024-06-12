@@ -502,9 +502,8 @@ where
     }
 
     fn with_default() -> Self {
-        Self::new(10)
+        Self::new(2)
     }
-
 }
 
 impl<T> DynamicArray<T> for MatrixArray<T>
@@ -512,34 +511,64 @@ where
     T: Clone + Default,
 {
     fn add(&mut self, item: T, index: usize) {
-        if self.size == self.array.size() * self.vector {
-            self.array.add(VectorArray::with_default(), self.array.size());
+        println!("Adding item at index: {}", index);
+        if index > self.size {
+            panic!("Index out of bounds");
         }
         let block_index = index / self.vector;
         let position = index % self.vector;
+        println!("Block index: {}, Position: {}", block_index, position);
+        if block_index >= self.array.size() {
+            println!("Adding new block at index: {}", block_index);
+            self.array.add(VectorArray::new(self.vector), self.array.size());
+        }
         self.array[block_index].add(item, position);
         self.size += 1;
+
+        // Ensure that the blocks beyond the current size are initialized
+        while self.array.size() * self.vector < self.size {
+            self.array.add(VectorArray::new(self.vector), self.array.size());
+        }
     }
 
     fn remove(&mut self, index: usize) -> T {
-        let block_index = index / self.vector;
-        let position = index % self.vector;
-        let removed_item = self.array[block_index].remove(position);
-        self.size -= 1;
-        removed_item
-    }
-    
-    fn size(&self) -> usize {
-        self.size
-    }
- 
-    fn get(&self, index: usize) -> &T {
+        println!("Removing item at index: {}", index);
         if index >= self.size {
             panic!("Index out of bounds");
         }
         let block_index = index / self.vector;
         let position = index % self.vector;
+        println!("Block index: {}, Position: {}", block_index, position);
+        let removed_item = self.array[block_index].remove(position);
+        self.size -= 1;
+        if self.array[block_index].size() == 0 {
+            println!("Removing empty block at index: {}", block_index);
+            self.array.remove(block_index);
+        }
+        removed_item
+    }
+
+    fn size(&self) -> usize {
+        self.size
+    }
+
+    fn get(&self, index: usize) -> &T {
+        println!("Getting item at index: {}", index);
+        if index >= self.size {
+            panic!("Index out of bounds");
+        }
+        let block_index = index / self.vector;
+        let position = index % self.vector;
+        println!("Block index: {}, Position: {}", block_index, position);
         &self.array[block_index][position]
+    }
+
+    fn reset(&mut self) {
+        println!("Resetting array");
+        while self.array.size() > 0 {
+            self.array.remove(0);
+        }
+        self.size = 0;
     }
 }
 
@@ -674,8 +703,9 @@ where
              format!("{:?}", duration_remove_random),
              format!("{:?}", duration_remove_end));
 }
+
 fn main() {
-    const SIZE: usize = 100_000;
+    const SIZE: usize = 4;
     let mut single_array: SingleArray<i32> = SingleArray::new();
     let mut vector_array: VectorArray<i32> = VectorArray::with_default();
     let mut factor_array: FactorArray<i32> = FactorArray::with_default();
@@ -688,3 +718,4 @@ fn main() {
     measure_performance(&mut factor_array, SIZE, "FactorArray", false);
     measure_performance(&mut array_list, SIZE, "ArrayList", false);
 }
+
