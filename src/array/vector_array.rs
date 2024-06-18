@@ -37,7 +37,7 @@ where
         }
     }
 
-    fn resize(&mut self, new_capacity: usize) {
+    pub fn resize(&mut self, new_capacity: usize) {
         let new_array = unsafe {
             let layout = std::alloc::Layout::array::<T>(new_capacity).unwrap();
             let ptr = std::alloc::alloc(layout) as *mut T;

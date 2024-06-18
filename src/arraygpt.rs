@@ -1,6 +1,6 @@
 use std::time::Instant;
-use std::collections::VecDeque;
-use std::collections::LinkedList;
+// use std::collections::VecDeque;
+// use std::collections::LinkedList;
 use rand::seq::SliceRandom;
 
 trait IArray<T> {
@@ -190,7 +190,7 @@ fn check_valid(array: &mut dyn IArray<i32>) -> bool {
         array.add(i);
     }
     for j in 0..1000 {
-        if array.get(j) != j {
+        if array.get(j) != j as i32 {
             println!("Back insert - Fail");
             return false;
         }
@@ -201,7 +201,7 @@ fn check_valid(array: &mut dyn IArray<i32>) -> bool {
         array.add_at(i, 0);
     }
     for j in 0..1000 {
-        if array.get(j) != 999 - j {
+        if array.get(j) != 999 - j as i32 {
             println!("Front insert - Fail");
             return false;
         }

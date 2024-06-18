@@ -502,7 +502,7 @@ where
     }
 
     fn with_default() -> Self {
-        Self::new(2)
+        Self::new(10)
     }
 }
 
@@ -705,7 +705,7 @@ where
 }
 
 fn main() {
-    const SIZE: usize = 4;
+    const SIZE: usize = 19;
     let mut single_array: SingleArray<i32> = SingleArray::new();
     let mut vector_array: VectorArray<i32> = VectorArray::with_default();
     let mut factor_array: FactorArray<i32> = FactorArray::with_default();

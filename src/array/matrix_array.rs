@@ -1,7 +1,7 @@
 //use std::ops::{Deref, DerefMut};
 use super::dynamic_array::DynamicArray;
-use super::vector_array::VectorArray;
 use super::single_array::SingleArray;
+use super::vector_array::VectorArray;
 
 pub struct MatrixArray<T> {
     size: usize,
@@ -38,11 +38,19 @@ where
         let block_index = index / self.vector;
         let position = index % self.vector;
         println!("Block index: {}, Position: {}", block_index, position);
+
         while block_index >= self.array.size() {
             println!("Adding new block at index: {}", block_index);
-            self.array.add(VectorArray::new(self.vector), self.array.size());
+            self.array
+                .add(VectorArray::new(self.vector), self.array.size());
         }
-        self.array[block_index].add(item, position);
+
+        if self.array[block_index].size() < position {
+            self.array[block_index].add(item, 0); 
+        }
+        else {
+            self.array[block_index].add(item, position);
+        }
         self.size += 1;
     }
 
@@ -51,9 +59,20 @@ where
         if index >= self.size {
             return None;
         }
-        let block_index = index / self.vector;
+        let mut block_index = index / self.vector;
         let position = index % self.vector;
         println!("Block index: {}, Position: {}", block_index, position);
+
+        if block_index >= self.array.size() {
+            return None;
+        }
+        let block_size = self.array[block_index].size();
+        if position >= block_size {
+            if block_index == 0 {
+                return None;
+            }
+            block_index -= 1;
+        }
         let removed_item = self.array[block_index].remove(position);
         self.size -= 1;
 
@@ -74,7 +93,7 @@ where
         }
 
         // Remove last block if it's empty
-        if self.array[self.array.size() - 1].size() == 0 {
+        if self.array.size() > 0 && self.array[self.array.size() - 1].size() == 0 {
             println!("Removing empty block at index: {}", self.array.size() - 1);
             self.array.remove(self.array.size() - 1);
         }
