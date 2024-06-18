@@ -8,6 +8,7 @@ use array::vector_array::VectorArray;
 use array::factor_array::FactorArray;
 use array::matrix_array::MatrixArray;
 use array::arraylist::ArrayList;
+use array::space_array::SpaceArray;
 
 fn measure_performance<T>(array: &mut dyn DynamicArray<T>, size: usize, name: &str, first_row: bool)
 where
@@ -143,10 +144,12 @@ fn main() {
     let mut factor_array: FactorArray<i32> = FactorArray::with_default();
     let mut matrix_array: MatrixArray<i32> = MatrixArray::with_default();
     let mut array_list: ArrayList<i32> = ArrayList::with_default();
+    let mut space_array: SpaceArray<i32> = SpaceArray::new();
 
     measure_performance(&mut single_array, SIZE, "SingleArray", true);
     measure_performance(&mut vector_array, SIZE, "VectorArray", false);
     measure_performance(&mut factor_array, SIZE, "FactorArray", false);
     measure_performance(&mut matrix_array, SIZE, "MatrixArray", false);
     measure_performance(&mut array_list, SIZE, "ArrayList", false);
+    measure_performance(&mut space_array, SIZE, "SpaceArray", false);
 }

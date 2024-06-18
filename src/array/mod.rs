@@ -5,3 +5,4 @@ pub mod vector_array;
 pub mod factor_array;
 pub mod matrix_array;
 pub mod arraylist;
+pub mod space_array;
