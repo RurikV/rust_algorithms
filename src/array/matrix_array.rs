@@ -1,4 +1,3 @@
-//use std::ops::{Deref, DerefMut};
 use super::dynamic_array::DynamicArray;
 use super::single_array::SingleArray;
 use super::vector_array::VectorArray;
@@ -31,37 +30,30 @@ where
     T: Clone + Default,
 {
     fn add(&mut self, item: T, index: usize) {
-        println!("Adding item at index: {}", index);
         if index > self.size {
             panic!("Index out of bounds");
         }
         let block_index = index / self.vector;
         let position = index % self.vector;
-        println!("Block index: {}, Position: {}", block_index, position);
 
         while block_index >= self.array.size() {
-            println!("Adding new block at index: {}", block_index);
-            self.array
-                .add(VectorArray::new(self.vector), self.array.size());
+            self.array.add(VectorArray::new(self.vector), self.array.size());
         }
 
         if self.array[block_index].size() < position {
             self.array[block_index].add(item, 0); 
-        }
-        else {
+        } else {
             self.array[block_index].add(item, position);
         }
         self.size += 1;
     }
 
     fn remove(&mut self, index: usize) -> Option<T> {
-        println!("Removing item at index: {}", index);
         if index >= self.size {
             return None;
         }
         let mut block_index = index / self.vector;
         let position = index % self.vector;
-        println!("Block index: {}, Position: {}", block_index, position);
 
         if block_index >= self.array.size() {
             return None;
@@ -94,7 +86,6 @@ where
 
         // Remove last block if it's empty
         if self.array.size() > 0 && self.array[self.array.size() - 1].size() == 0 {
-            println!("Removing empty block at index: {}", self.array.size() - 1);
             self.array.remove(self.array.size() - 1);
         }
 
@@ -106,18 +97,15 @@ where
     }
 
     fn get(&self, index: usize) -> &T {
-        println!("Getting item at index: {}", index);
         if index >= self.size {
             panic!("Index out of bounds");
         }
         let block_index = index / self.vector;
         let position = index % self.vector;
-        println!("Block index: {}, Position: {}", block_index, position);
         &self.array[block_index][position]
     }
 
     fn reset(&mut self) {
-        println!("Resetting array");
         while self.array.size() > 0 {
             self.array.remove(0);
         }
