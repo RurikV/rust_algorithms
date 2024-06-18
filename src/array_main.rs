@@ -139,6 +139,22 @@ where
 }
 
 fn main() {
+    let mut pq = PriorityQueue::new();
+    pq.enqueue(0, 1000);
+    pq.enqueue(1, 100);
+    pq.enqueue(1, 101);
+
+    assert_eq!(pq.dequeue(), Some(100));
+    pq.enqueue(-1, -1000);
+    pq.enqueue(100, 1);
+    assert_eq!(pq.dequeue(), Some(1));
+    assert_eq!(pq.dequeue(), Some(101));
+    assert_eq!(pq.dequeue(), Some(1000));
+    assert_eq!(pq.dequeue(), Some(-1000));
+    assert_eq!(pq.dequeue(), None);
+
+    println!("All tests passed!");
+
     const SIZE: usize = 100_000;
     let mut single_array: SingleArray<i32> = SingleArray::new();
     let mut vector_array: VectorArray<i32> = VectorArray::with_default();
@@ -146,7 +162,6 @@ fn main() {
     let mut matrix_array: MatrixArray<i32> = MatrixArray::with_default();
     let mut array_list: ArrayList<i32> = ArrayList::with_default();
     let mut space_array: SpaceArray<i32> = SpaceArray::new();
-    let mut priority_queue: PriorityQueue<i32> = PriorityQueue::new();
 
     measure_performance(&mut single_array, SIZE, "SingleArray", true);
     measure_performance(&mut vector_array, SIZE, "VectorArray", false);
@@ -154,5 +169,4 @@ fn main() {
     measure_performance(&mut matrix_array, SIZE, "MatrixArray", false);
     measure_performance(&mut array_list, SIZE, "ArrayList", false);
     measure_performance(&mut space_array, SIZE, "SpaceArray", false);
-    measure_performance(&mut priority_queue, SIZE, "PriorityQueue", false);
 }

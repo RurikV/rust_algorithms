@@ -1,42 +1,55 @@
-use std::collections::BinaryHeap;
-use super::dynamic_array::DynamicArray;
+use super::double_linked_list::DoubleLinkedList;
+
+struct PriorityRec<T> {
+    priority: i32,
+    recs: DoubleLinkedList<T>,
+}
 
 pub struct PriorityQueue<T> {
-    heap: BinaryHeap<T>,
+    data: Vec<PriorityRec<T>>,
 }
 
 impl<T> PriorityQueue<T>
 where
-    T: Ord,
+    T: Clone + Default,
 {
     pub fn new() -> Self {
-        Self {
-            heap: BinaryHeap::new(),
+        Self { data: Vec::new() }
+    }
+
+    pub fn enqueue(&mut self, priority: i32, item: T) {
+        for i in 0..self.data.len() {
+            if self.data[i].priority == priority {
+                self.data[i].recs.add(item);
+                return;
+            }
+            if self.data[i].priority < priority {
+                let mut new_rec = PriorityRec {
+                    priority,
+                    recs: DoubleLinkedList::new(),
+                };
+                new_rec.recs.add(item);
+                self.data.insert(i, new_rec);
+                return;
+            }
         }
-    }
-}
-
-impl<T> DynamicArray<T> for PriorityQueue<T>
-where
-    T: Ord + Clone + Default,
-{
-    fn add(&mut self, item: T, _index: usize) {
-        self.heap.push(item);
+        let mut new_rec = PriorityRec {
+            priority,
+            recs: DoubleLinkedList::new(),
+        };
+        new_rec.recs.add(item);
+        self.data.push(new_rec);
     }
 
-    fn remove(&mut self, _index: usize) -> Option<T> {
-        self.heap.pop()
-    }
-
-    fn size(&self) -> usize {
-        self.heap.len()
-    }
-
-    fn get(&self, _index: usize) -> &T {
-        self.heap.peek().expect("Heap is empty")
-    }
-
-    fn reset(&mut self) {
-        self.heap.clear();
+    pub fn dequeue(&mut self) -> Option<T> {
+        if self.data.is_empty() {
+            None
+        } else {
+            let rec = self.data[0].recs.remove(0);
+            if self.data[0].recs.size() == 0 {
+                self.data.remove(0);
+            }
+            Some(rec)
+        }
     }
 }

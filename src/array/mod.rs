@@ -6,4 +6,5 @@ pub mod factor_array;
 pub mod matrix_array;
 pub mod arraylist;
 pub mod space_array;
+pub mod double_linked_list;
 pub mod priority_queue;
