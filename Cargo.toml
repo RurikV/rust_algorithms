@@ -78,6 +78,10 @@ path = "src/arraygpt.rs"
 name = "arrays_debug"
 path = "src/arrays_debug.rs"
 
+[[bin]]
+name = "chess_bit_moves"
+path = "src/chess_bit_moves.rs"
+
 
 
 
