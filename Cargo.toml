@@ -82,6 +82,9 @@ path = "src/arrays_debug.rs"
 name = "chess_bit_moves"
 path = "src/chess_bit_moves.rs"
 
+[[bin]]
+name = "sorts"
+path = "src/sorts.rs"
 
 
 
