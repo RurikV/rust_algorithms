@@ -91,6 +91,9 @@ path = "src/sorts.rs"
 name = "sort_visualizer"
 path = "src/sort_visualizer.rs"
 
+[[bin]]
+name = "pyramid_sorts"
+path = "src/pyramid_sorts.rs"
 
 
 
