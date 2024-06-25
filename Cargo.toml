@@ -95,7 +95,13 @@ path = "src/sort_visualizer.rs"
 name = "pyramid_sorts"
 path = "src/pyramid_sorts.rs"
 
+[[bin]]
+name = "quick_sort"
+path = "src/quick_sort.rs"
 
+[[bin]]
+name = "bucket_sort"
+path = "src/bucket_sort.rs"
 
 
 
