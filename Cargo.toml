@@ -103,5 +103,8 @@ path = "src/quick_sort.rs"
 name = "bucket_sort"
 path = "src/bucket_sort.rs"
 
+[[bin]]
+name = "trees"
+path = "src/trees.rs"
 
 
