@@ -5,7 +5,6 @@ use std::ops::{Deref, DerefMut, RangeBounds};
 
 extern crate rand; // 0.8.5
 use rand::Rng;
-
 pub struct EBSTNode {
     key: u32,
     left: Option<Box<EBSTNode>>,
@@ -45,11 +44,43 @@ impl EBSTNode {
     }
 
     pub fn remove(&mut self, key: u32) -> Option<u32> {
-        // Removing node functionality
-        None // Placeholder for simplicity
+        if key < self.key {
+            if let Some(ref mut left) = self.left {
+                return left.remove(key);
+            }
+        } else if key > self.key {
+            if let Some(ref mut right) = self.right {
+                return right.remove(key);
+            }
+        } else {
+            if self.left.is_none() {
+                return self.right.take().map(|right_node| {
+                    *self = *right_node;
+                    self.key
+                });
+            }
+            if self.right.is_none() {
+                return self.left.take().map(|left_node| {
+                    *self = *left_node;
+                    self.key
+                });
+            }
+
+            let min_larger_node = self.right.as_mut().unwrap().find_min();
+            self.key = min_larger_node.key;
+            return self.right.as_mut().unwrap().remove(self.key);
+        }
+        None
+    }
+
+    fn find_min(&mut self) -> &Self {
+        if let Some(ref mut left) = self.left {
+            left.find_min()
+        } else {
+            self
+        }
     }
 }
-
 
 pub struct RBSTNode {
     key: u32,
@@ -90,11 +121,43 @@ impl RBSTNode {
     }
 
     pub fn remove(&mut self, key: u32) -> Option<u32> {
-        // Removing node functionality
-        None // Placeholder for simplicity
+        if key < self.key {
+            if let Some(ref mut left) = self.left {
+                return left.remove(key);
+            }
+        } else if key > self.key {
+            if let Some(ref mut right) = self.right {
+                return right.remove(key);
+            }
+        } else {
+            if self.left.is_none() {
+                return self.right.take().map(|right_node| {
+                    *self = *right_node;
+                    self.key
+                });
+            }
+            if self.right.is_none() {
+                return self.left.take().map(|left_node| {
+                    *self = *left_node;
+                    self.key
+                });
+            }
+
+            let min_larger_node = self.right.as_mut().unwrap().find_min();
+            self.key = min_larger_node.key;
+            return self.right.as_mut().unwrap().remove(self.key);
+        }
+        None
+    }
+
+    fn find_min(&mut self) -> &Self {
+        if let Some(ref mut left) = self.left {
+            left.find_min()
+        } else {
+            self
+        }
     }
 }
-
 
 #[derive(Copy, Clone)]
 pub enum Direction {
