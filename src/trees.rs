@@ -6,39 +6,6 @@ use std::ops::{Deref, DerefMut, RangeBounds};
 extern crate rand; // 0.8.5
 use rand::Rng;
 
-use std::f64::INFINITY;
-
-fn optimal_bst(keys: &[u32], freq: &[f64]) -> (Vec<Vec<f64>>, Vec<Vec<usize>>) {
-    let n = keys.len();
-    let mut cost = vec![vec![0.0; n]; n];
-    let mut root = vec![vec![0; n]; n];
-
-    for i in 0..n {
-        cost[i][i] = freq[i];
-        root[i][i] = i;
-    }
-
-    for l in 2..=n {
-        for i in 0..=n-l {
-            let j = i + l - 1;
-            cost[i][j] = INFINITY;
-            let mut sum = 0.0;
-            for k in i..=j {
-                sum += freq[k];
-            }
-            for r in i..=j {
-                let c = if r > i { cost[i][r-1] } else { 0.0 } +
-                        if r < j { cost[r+1][j] } else { 0.0 } + sum;
-                if c < cost[i][j] {
-                    cost[i][j] = c;
-                    root[i][j] = r;
-                }
-            }
-        }
-    }
-    (cost, root)
-}
-
 pub struct EBSTNode {
     key: u32,
     left: Option<Box<EBSTNode>>,
@@ -764,21 +731,62 @@ impl<T: Ord> DerefMut for TreapSet<T> {
     }
 }
 
+impl<T: Ord> TreapSet<T> {
+    pub fn sort(&self) -> Vec<&T> {
+        let mut sorted = Vec::new();
+        self.in_order_traversal(&self.root, &mut sorted);
+        sorted
+    }
 
-use std::time::Instant;
-use std::time::Duration;
-
-fn print_comparison_table(
-    treap_insert: Duration, treap_asc_insert: Duration, treap_search: Duration, treap_delete: Duration,
-    ebst_insert: Duration, ebst_asc_insert: Duration, ebst_search: Duration, ebst_delete: Duration,
-    rbst_insert: Duration, rbst_asc_insert: Duration, rbst_search: Duration, rbst_delete: Duration
-) {
-    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Operation", "Treap", "EBST", "RBST");
-    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Random Insert", format!("{:?}", treap_insert), format!("{:?}", ebst_insert), format!("{:?}", rbst_insert));
-    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Ascending Insert", format!("{:?}", treap_asc_insert), format!("{:?}", ebst_asc_insert), format!("{:?}", rbst_asc_insert));
-    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Search", format!("{:?}", treap_search), format!("{:?}", ebst_search), format!("{:?}", rbst_search));
-    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Delete", format!("{:?}", treap_delete), format!("{:?}", ebst_delete), format!("{:?}", rbst_delete));
+    fn in_order_traversal<'a>(&'a self, node: &'a TreapNode<TreapValue<T, ()>>, sorted: &mut Vec<&'a T>) {
+        if let Some(inner) = node.deref() {
+            self.in_order_traversal(&inner.left, sorted);
+            sorted.push(&inner.payload.key);
+            self.in_order_traversal(&inner.right, sorted);
+        }
+    }
 }
+
+
+
+impl EBSTNode {
+    pub fn sort(&self) -> Vec<u32> {
+        let mut sorted = Vec::new();
+        self.in_order_traversal(&mut sorted);
+        sorted
+    }
+
+    fn in_order_traversal(&self, sorted: &mut Vec<u32>) {
+        if let Some(ref left) = self.left {
+            left.in_order_traversal(sorted);
+        }
+        sorted.push(self.key);
+        if let Some(ref right) = self.right {
+            right.in_order_traversal(sorted);
+        }
+    }
+}
+
+impl RBSTNode {
+    pub fn sort(&self) -> Vec<u32> {
+        let mut sorted = Vec::new();
+        self.in_order_traversal(&mut sorted);
+        sorted
+    }
+
+    fn in_order_traversal(&self, sorted: &mut Vec<u32>) {
+        if let Some(ref left) = self.left {
+            left.in_order_traversal(sorted);
+        }
+        sorted.push(self.key);
+        if let Some(ref right) = self.right {
+            right.in_order_traversal(sorted);
+        }
+    }
+}
+
+
+use std::time::{Instant, Duration};
 
 fn main() {
     let n = 10_000; // Adjust N based on performance requirements
@@ -877,25 +885,36 @@ fn main() {
     }
     let rbst_delete_duration = start_rbst_delete.elapsed();
 
-    // Results
-    println!("Insertion (Treap - Random Order): {:?}", treap_insert_duration);
-    println!("Insertion (EBST - Random Order): {:?}", ebst_insert_duration);
-    println!("Insertion (RBST - Random Order): {:?}", rbst_insert_duration);
-    println!("Insertion (Treap - Ascending Order): {:?}", ascending_treap_insert_duration);
-    println!("Insertion (EBST - Ascending Order): {:?}", ascending_ebst_insert_duration);
-    println!("Insertion (RBST - Ascending Order): {:?}", ascending_rbst_insert_duration);
-    println!("Search (Treap): {:?}", treap_search_duration);
-    println!("Search (EBST): {:?}", ebst_search_duration);
-    println!("Search (RBST): {:?}", rbst_search_duration);
-    println!("Delete (Treap): {:?}", treap_delete_duration);
-    println!("Delete (EBST): {:?}", ebst_delete_duration);
-    println!("Delete (RBST): {:?}", rbst_delete_duration);
-    println!();
+    // Sorting Operation
+    let start_treap_sort = Instant::now();
+    let _ = treap.sort();
+    let treap_sort_duration = start_treap_sort.elapsed();
 
-    // Call the print_comparison_table function with the measured durations
+    let start_ebst_sort = Instant::now();
+    let _ = ebst.sort();
+    let ebst_sort_duration = start_ebst_sort.elapsed();
+
+    let start_rbst_sort = Instant::now();
+    let _ = rbst.sort();
+    let rbst_sort_duration = start_rbst_sort.elapsed();
+
+    // Print Results
     print_comparison_table(
-        treap_insert_duration, ascending_treap_insert_duration, treap_search_duration, treap_delete_duration,
-        ebst_insert_duration, ascending_ebst_insert_duration, ebst_search_duration, ebst_delete_duration,
-        rbst_insert_duration, ascending_rbst_insert_duration, rbst_search_duration, rbst_delete_duration
+        treap_insert_duration, ascending_treap_insert_duration, treap_search_duration, treap_delete_duration, treap_sort_duration,
+        ebst_insert_duration, ascending_ebst_insert_duration, ebst_search_duration, ebst_delete_duration, ebst_sort_duration,
+        rbst_insert_duration, ascending_rbst_insert_duration, rbst_search_duration, rbst_delete_duration, rbst_sort_duration
     );
+}
+
+fn print_comparison_table(
+    treap_insert: Duration, treap_asc_insert: Duration, treap_search: Duration, treap_delete: Duration, treap_sort: Duration,
+    ebst_insert: Duration, ebst_asc_insert: Duration, ebst_search: Duration, ebst_delete: Duration, ebst_sort: Duration,
+    rbst_insert: Duration, rbst_asc_insert: Duration, rbst_search: Duration, rbst_delete: Duration, rbst_sort: Duration
+) {
+    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Operation", "Treap", "EBST", "RBST");
+    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Random Insert", format!("{:?}", treap_insert), format!("{:?}", ebst_insert), format!("{:?}", rbst_insert));
+    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Ascending Insert", format!("{:?}", treap_asc_insert), format!("{:?}", ebst_asc_insert), format!("{:?}", rbst_asc_insert));
+    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Search", format!("{:?}", treap_search), format!("{:?}", ebst_search), format!("{:?}", rbst_search));
+    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Delete", format!("{:?}", treap_delete), format!("{:?}", ebst_delete), format!("{:?}", rbst_delete));
+    println!("{:<30} | {:<15} | {:<15} | {:<15}", "Sort", format!("{:?}", treap_sort), format!("{:?}", ebst_sort), format!("{:?}", rbst_sort));
 }
