@@ -107,4 +107,8 @@ path = "src/bucket_sort.rs"
 name = "trees"
 path = "src/trees.rs"
 
+[[bin]]
+name = "hash"
+path = "src/hash.rs"
+
 
