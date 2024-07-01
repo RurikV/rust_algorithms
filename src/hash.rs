@@ -135,15 +135,35 @@ where
 
 fn main() {
     let mut table = HashTable::new();
-    table.insert("key1", "value1");
-    table.insert("key2", "value2");
-    table.insert("key3", "value3");
+    
+    // Вставка элементов
+    table.insert("key1".to_string(), "value1".to_string());
+    table.insert("key2".to_string(), "value2".to_string());
+    table.insert("key3".to_string(), "value3".to_string());
 
-    println!("{:?}", table.get(&"key1")); // Some("value1")
-    println!("{:?}", table.get(&"key2")); // Some("value2")
-    println!("{:?}", table.get(&"key3")); // Some("value3")
+    // Получение элементов
+    println!("{:?}", table.get(&"key1".to_string())); // Some("value1")
+    println!("{:?}", table.get(&"key2".to_string())); // Some("value2")
+    println!("{:?}", table.get(&"key3".to_string())); // Some("value3")
 
-    table.remove(&"key2");
+    // Ленивое удаление
+    table.remove(&"key2".to_string());
+    println!("{:?}", table.get(&"key2".to_string())); // None
 
-    println!("{:?}", table.get(&"key2")); // None
+    // Проверка повторного использования места после удаления
+    table.insert("key2".to_string(), "value2_new".to_string());
+    println!("{:?}", table.get(&"key2".to_string())); // Some("value2_new")
+
+    // Проверка переполнения и рехеширования
+    for i in 4..10 {
+        table.insert(format!("key{}", i), format!("value{}", i));
+    }
+
+    for i in 1..10 {
+        println!("{:?}", table.get(&format!("key{}", i))); // Все ключи должны быть найдены
+    }
+
+    // Проверка вставки с обновлением значения
+    table.insert("key1".to_string(), "value1_updated".to_string());
+    println!("{:?}", table.get(&"key1".to_string())); // Some("value1_updated")
 }
