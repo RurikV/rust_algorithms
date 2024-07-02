@@ -111,4 +111,8 @@ path = "src/trees.rs"
 name = "hash"
 path = "src/hash.rs"
 
+[[bin]]
+name = "trie"
+path = "src/trie.rs"
+
 
