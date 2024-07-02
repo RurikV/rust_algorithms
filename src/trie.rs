@@ -37,6 +37,17 @@ impl Trie {
         node.is_end_of_word
     }
 
+    pub fn starts_with(&self, prefix: &str) -> bool {
+        let mut node = &self.root;
+        for ch in prefix.chars() {
+            match node.children.get(&ch) {
+                Some(n) => node = n,
+                None => return false,
+            }
+        }
+        true
+    }
+
     pub fn delete(&mut self, word: &str) -> bool {
         Trie::delete_recursive(&mut self.root, word, 0).is_some()
     }
@@ -63,7 +74,7 @@ impl Trie {
     }
 }
 
-// AssociativeTrie implementation (corrected)
+
 struct AssociativeTrieNode<T> {
     children: HashMap<char, AssociativeTrieNode<T>>,
     is_end_of_word: bool,
@@ -111,6 +122,17 @@ impl<T> AssociativeTrie<T> {
         node.is_end_of_word
     }
 
+    pub fn starts_with(&self, prefix: &str) -> bool {
+        let mut node = &self.root;
+        for ch in prefix.chars() {
+            match node.children.get(&ch) {
+                Some(n) => node = n,
+                None => return false,
+            }
+        }
+        true
+    }
+
     pub fn delete(&mut self, key: &str) -> bool {
         AssociativeTrie::delete_recursive(&mut self.root, key, 0).is_some()
     }
@@ -142,7 +164,7 @@ fn main() {
     let mut trie = Trie::new();
     let mut assoc_trie = AssociativeTrie::new();
 
-    let words: Vec<String> = (0..100000).map(|i| format!("word{}", i)).collect();
+    let words: Vec<String> = (0..10_00_000).map(|i| format!("word{}", i)).collect();
 
     println!("Operation | Trie Time | AssociativeTrie Time");
     println!("----------|-----------|---------------------");
@@ -176,6 +198,21 @@ fn main() {
     });
 
     println!("Search    | {:9.6}s | {:19.6}s", trie_search_time.as_secs_f64(), assoc_trie_search_time.as_secs_f64());
+
+    // Starts With
+    let trie_starts_with_time = measure_time(|| {
+        for word in &words {
+            trie.starts_with(&word[0..3]);
+        }
+    });
+
+    let assoc_trie_starts_with_time = measure_time(|| {
+        for word in &words {
+            assoc_trie.starts_with(&word[0..3]);
+        }
+    });
+
+    println!("StartsWith| {:9.6}s | {:19.6}s", trie_starts_with_time.as_secs_f64(), assoc_trie_starts_with_time.as_secs_f64());
 
     // Delete
     let trie_delete_time = measure_time(|| {
