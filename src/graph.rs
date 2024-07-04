@@ -149,6 +149,39 @@ impl BipartiteGraph {
             println!("({}, {})", left, right);
         }
     }
+
+    fn draw_bipartite_graph(&self) {
+        println!("Bipartite Graph A(3,4) with 5 edges:");
+        for &a in self.left_vertices.iter() {
+            print!("{} ", a);
+            for &b in &self.right_vertices {
+                if self.edges.contains(&(a, b)) {
+                    print!("-- {} ", b);
+                }
+            }
+            println!();
+        }
+    }
+
+    fn draw_ascii(&self) {
+        println!("ASCII representation of the bipartite graph A(3,4) with 5 edges:");
+        println!();
+        println!("Left set:    Right set:");
+        println!("   A -------- 1");
+        println!("    \\");
+        println!("     \\");
+        println!("      \\------ 2");
+        println!("       \\    /");
+        println!("        \\  /");
+        println!("         \\/");
+        println!("    B ---/");
+        println!("     \\");
+        println!("      \\");
+        println!("       \\---- 3");
+        println!("        C --- 4");
+        println!();
+        println!("Edges: {:?}", self.edges);
+    }
 }
 
 fn main() {
@@ -158,9 +191,12 @@ fn main() {
         vec![('A', '1'), ('A', '2'), ('B', '2'), ('B', '3'), ('C', '4')]
     );
 
+    graph.draw_ascii();
     graph.draw();
     println!();
     graph.set_enumeration();
+    println!();
+    graph.draw_bipartite_graph();
     println!();
     graph.adjacency_matrix();
     println!();
