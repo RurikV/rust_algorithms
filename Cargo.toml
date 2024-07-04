@@ -115,4 +115,8 @@ path = "src/hash.rs"
 name = "trie"
 path = "src/trie.rs"
 
+[[bin]]
+name = "graph"
+path = "src/graph.rs"
+
 
