@@ -1,74 +1,78 @@
-#[derive(Debug, Clone, Copy)]
+use std::cmp::Ordering;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 struct Edge {
-    v1: usize,
-    v2: usize,
+    u: usize,
+    v: usize,
     weight: i32,
 }
 
-struct UnionFind {
-    parent: Vec<usize>,
-    rank: Vec<usize>,
-}
-
-impl UnionFind {
-    fn new(size: usize) -> Self {
-        UnionFind {
-            parent: (0..size).collect(),
-            rank: vec![0; size],
-        }
-    }
-
-    fn find(&mut self, x: usize) -> usize {
-        if self.parent[x] != x {
-            self.parent[x] = self.find(self.parent[x]);
-        }
-        self.parent[x]
-    }
-
-    fn union(&mut self, x: usize, y: usize) {
-        let root_x = self.find(x);
-        let root_y = self.find(y);
-
-        if root_x != root_y {
-            if self.rank[root_x] < self.rank[root_y] {
-                self.parent[root_x] = root_y;
-            } else if self.rank[root_x] > self.rank[root_y] {
-                self.parent[root_y] = root_x;
-            } else {
-                self.parent[root_y] = root_x;
-                self.rank[root_x] += 1;
-            }
-        }
+impl Ord for Edge {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.weight.cmp(&other.weight)
     }
 }
 
-fn kruskal(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
-    let n = graph.len();
+impl PartialOrd for Edge {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+fn find(parent: &mut Vec<usize>, i: usize) -> usize {
+    if parent[i] != i {
+        parent[i] = find(parent, parent[i]);
+    }
+    parent[i]
+}
+
+fn union(parent: &mut Vec<usize>, rank: &mut Vec<usize>, x: usize, y: usize) {
+    let x_root = find(parent, x);
+    let y_root = find(parent, y);
+
+    if rank[x_root] < rank[y_root] {
+        parent[x_root] = y_root;
+    } else if rank[x_root] > rank[y_root] {
+        parent[y_root] = x_root;
+    } else {
+        parent[y_root] = x_root;
+        rank[x_root] += 1;
+    }
+}
+
+fn kruskal_mst(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
     let mut edges = Vec::new();
+    let n = graph.len();
 
-    // Collect all edges
     for i in 0..n {
-        for j in 0..graph[i].len() {
-            if graph[i][j] != 0 {
-                edges.push(Edge { v1: i, v2: j, weight: graph[i][j] });
-            }
+        for j in 0..graph[i].len() / 2 {
+            let v = graph[i][j * 2];
+            let weight = graph[i][j * 2 + 1];
+            edges.push(Edge { u: i, v: v as usize, weight });
         }
     }
 
-    // Sort edges by weight
-    edges.sort_by_key(|e| e.weight);
+    edges.sort_unstable();
 
-    let mut union_find = UnionFind::new(n);
-    let mut mst = Vec::new();
+    let mut parent: Vec<usize> = (0..n).collect();
+    let mut rank = vec![0; n];
+    let mut result = Vec::new();
 
     for edge in edges {
-        if union_find.find(edge.v1) != union_find.find(edge.v2) {
-            union_find.union(edge.v1, edge.v2);
-            mst.push(Edge { v1: edge.v1, v2: edge.v2, weight: edge.weight });
+        let x = find(&mut parent, edge.u);
+        let y = find(&mut parent, edge.v);
+
+        if x != y {
+            result.push(edge);
+            union(&mut parent, &mut rank, x, y);
+        }
+
+        if result.len() == n - 1 {
+            break;
         }
     }
 
-    mst
+    result
 }
 
 
@@ -83,23 +87,25 @@ fn prim(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
 
     // Start with vertex 0
     visited[0] = true;
-    for (j, &weight) in graph[0].iter().enumerate() {
-        if weight != 0 {
-            pq.push(Reverse((weight, 0, j)));
-        }
+    for j in (0..graph[0].len()).step_by(2) {
+        let v = graph[0][j] as usize;
+        let weight = graph[0][j+1];
+        pq.push(Reverse((weight, 0, v)));
     }
 
-    while let Some(Reverse((weight, v1, v2))) = pq.pop() {
-        if visited[v2] {
+    while let Some(Reverse((weight, u, v))) = pq.pop() {
+        if visited[v] {
             continue;
         }
 
-        visited[v2] = true;
-        mst.push(Edge { v1, v2, weight });
+        visited[v] = true;
+        mst.push(Edge { u, v, weight });
 
-        for (j, &w) in graph[v2].iter().enumerate() {
-            if w != 0 && !visited[j] {
-                pq.push(Reverse((w, v2, j)));
+        for j in (0..graph[v].len()).step_by(2) {
+            let next_v = graph[v][j] as usize;
+            let next_weight = graph[v][j+1];
+            if !visited[next_v] {
+                pq.push(Reverse((next_weight, v, next_v)));
             }
         }
     }
@@ -109,7 +115,8 @@ fn prim(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
 
 fn boruvka(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
     let n = graph.len();
-    let mut union_find = UnionFind::new(n);
+    let mut parent: Vec<usize> = (0..n).collect();
+    let mut rank = vec![0; n];
     let mut mst = Vec::new();
 
     loop {
@@ -117,17 +124,17 @@ fn boruvka(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
 
         // Find the cheapest edge for each component
         for i in 0..n {
-            for j in 0..graph[i].len() {
-                if graph[i][j] != 0 {
-                    let root_i = union_find.find(i);
-                    let root_j = union_find.find(j);
+            for j in (0..graph[i].len()).step_by(2) {
+                let v = graph[i][j] as usize;
+                let weight = graph[i][j+1];
+                let root_i = find(&mut parent, i);
+                let root_v = find(&mut parent, v);
 
-                    if root_i != root_j {
-                        match cheapest[root_i] {
-                            None => cheapest[root_i] = Some(Edge { v1: i, v2: j, weight: graph[i][j] }),
-                            Some(edge) if graph[i][j] < edge.weight => cheapest[root_i] = Some(Edge { v1: i, v2: j, weight: graph[i][j] }),
-                            _ => {}
-                        }
+                if root_i != root_v {
+                    match cheapest[root_i] {
+                        None => cheapest[root_i] = Some(Edge { u: i, v, weight }),
+                        Some(edge) if weight < edge.weight => cheapest[root_i] = Some(Edge { u: i, v, weight }),
+                        _ => {}
                     }
                 }
             }
@@ -137,8 +144,10 @@ fn boruvka(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
         let mut num_components = 0;
         for i in 0..n {
             if let Some(edge) = cheapest[i] {
-                if union_find.find(edge.v1) != union_find.find(edge.v2) {
-                    union_find.union(edge.v1, edge.v2);
+                let root_u = find(&mut parent, edge.u);
+                let root_v = find(&mut parent, edge.v);
+                if root_u != root_v {
+                    union(&mut parent, &mut rank, root_u, root_v);
                     mst.push(edge);
                     num_components += 1;
                 }
@@ -174,16 +183,35 @@ fn display_graph(graph: &Vec<Vec<i32>>) {
 }
 
 fn main() {
-    let graph = vec![
-        vec![0, 2, 0, 6, 0],
-        vec![2, 0, 3, 8, 5],
-        vec![0, 3, 0, 0, 7],
-        vec![6, 8, 0, 0, 9],
-        vec![0, 5, 7, 9, 0],
+    let graph: Vec<Vec<i32>> = vec![
+        vec![1, 2, 2, 2, 4, 1, 6, 3],  // Vertex 0
+        vec![0, 2, 2, 2, 3, 3],        // Vertex 1
+        vec![0, 2, 1, 3],              // Vertex 2
+        vec![1, 3, 4, 3],              // Vertex 3
+        vec![0, 1, 3, 2, 6, 3],        // Vertex 4
+        vec![4, 4, 6, 2],              // Vertex 5
+        vec![5, 2, 4, 4]               // Vertex 6
     ];
+
     display_graph(&graph);
 
-    println!("Kruskal's MST: {:?}", kruskal(&graph));
+    println!("Kruskal's MST:");
+    for edge in kruskal_mst(&graph) {
+        println!("{} -- {} : {}", edge.u, edge.v, edge.weight);
+    }
+
+    println!("\nPrim's MST:");
+    for edge in prim(&graph) {
+        println!("{} -- {} : {}", edge.u, edge.v, edge.weight);
+    }
+
+    println!("\nBoruvka's MST:");
+    for edge in boruvka(&graph) {
+        println!("{} -- {} : {}", edge.u, edge.v, edge.weight);
+    }
+
+    println!();
+    println!("Kruskal's MST: {:?}", kruskal_mst(&graph));
     println!("Prim's MST: {:?}", prim(&graph));
     println!("Boruvka's MST: {:?}", boruvka(&graph));
 }
