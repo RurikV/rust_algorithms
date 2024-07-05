@@ -127,3 +127,7 @@ path = "src/directed_graph.rs"
 [[bin]]
 name = "graph_kruskal"
 path = "src/graph_kruskal.rs"
+
+[[bin]]
+name = "graph_dijkstra"
+path = "src/graph_dijkstra.rs"
