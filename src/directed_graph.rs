@@ -168,65 +168,53 @@ impl DirectedGraph {
     }
 
     fn display(&self) {
-        println!("Graph visualization:");
-        let mut levels: HashMap<usize, usize> = HashMap::new();
-        self.assign_levels(0, &mut levels, 0);
+        println!("Directed Acyclic Graph visualization:");
 
-        let max_level = *levels.values().max().unwrap_or(&0);
-        for level in 0..=max_level {
-            let vertices_at_level: Vec<_> = levels.iter()
-                .filter(|(_, &l)| l == level)
-                .map(|(&v, _)| v)
-                .collect();
+        let mut visited = HashSet::new();
+        let mut lines = Vec::new();
 
-            // Print vertices
-            for &v in &vertices_at_level {
-                print!("{:2}", v);
-                print!("{}   ", " ".repeat(3));
-            }
-            println!();
+        self.dfs_display(0, &mut visited, &mut lines, String::new(), true);
 
-            // Print edges
-            for &v in &vertices_at_level {
-                if let Some(neighbors) = self.adjacency_list.get(&v) {
-                    if !neighbors.is_empty() {
-                        print!(" |");
-                    } else {
-                        print!("  ");
-                    }
-                    print!("{}   ", " ".repeat(3));
-                }
-            }
-            println!();
-
-            for &v in &vertices_at_level {
-                if let Some(neighbors) = self.adjacency_list.get(&v) {
-                    if !neighbors.is_empty() {
-                        print!(" v");
-                    } else {
-                        print!("  ");
-                    }
-                    print!("{}   ", " ".repeat(3));
-                }
-            }
-            println!();
+        for line in lines {
+            println!("{}", line);
         }
     }
 
-    fn assign_levels(&self, vertex: usize, levels: &mut HashMap<usize, usize>, current_level: usize) {
-        if let Some(&level) = levels.get(&vertex) {
-            if level <= current_level {
-                return;
-            }
+    fn dfs_display(&self, node: usize, visited: &mut HashSet<usize>, lines: &mut Vec<String>, prefix: String, is_last: bool) {
+        if visited.contains(&node) {
+            return;
         }
-        levels.insert(vertex, current_level);
-        if let Some(neighbors) = self.adjacency_list.get(&vertex) {
-            for &neighbor in neighbors {
-                self.assign_levels(neighbor, levels, current_level + 1);
+        visited.insert(node);
+
+        let mut current_line = prefix.clone();
+        if !prefix.is_empty() {
+            current_line.push_str(if is_last { "    " } else { "│   " });
+        }
+        current_line.push_str(&node.to_string());
+
+        if let Some(neighbors) = self.adjacency_list.get(&node) {
+            let mut sorted_neighbors: Vec<_> = neighbors.iter().collect();
+            sorted_neighbors.sort();
+
+            for (i, &neighbor) in sorted_neighbors.iter().enumerate() {
+                let mut neighbor_line = current_line.clone();
+                neighbor_line.push_str(" --> ");
+                neighbor_line.push_str(&neighbor.to_string());
+                lines.push(neighbor_line);
+
+                let mut new_prefix = prefix.clone();
+                if !prefix.is_empty() {
+                    new_prefix.push_str(if is_last { "    " } else { "│   " });
+                }
+                new_prefix.push_str("    ");
+                self.dfs_display(*neighbor, visited, lines, new_prefix, i == sorted_neighbors.len() - 1);
             }
+        } else {
+            lines.push(current_line);
         }
     }
 }
+
 
 // Implementation for the graph with strongly connected components
 struct SCCGraph {
@@ -305,6 +293,44 @@ impl SCCGraph {
             }
         }
     }
+
+    fn display(&self) {
+        println!();
+        println!("Strongly Connected Components Graph visualization:");
+
+        // First, find the SCCs
+        let components = self.kosaraju();
+
+        // Create a mapping of vertices to their component index
+        let mut vertex_to_component = HashMap::new();
+        for (i, component) in components.iter().enumerate() {
+            for &vertex in component {
+                vertex_to_component.insert(vertex, i);
+            }
+        }
+
+        // Display components
+        for (i, component) in components.iter().enumerate() {
+            println!("Component {}:", i);
+            print!("[ ");
+            for &vertex in component {
+                print!("{} ", vertex);
+            }
+            println!("]");
+
+            // Display edges going out of this component
+            for &vertex in component {
+                if let Some(neighbors) = self.graph.adjacency_list.get(&vertex) {
+                    for &neighbor in neighbors {
+                        if vertex_to_component[&neighbor] != i {
+                            println!("  {} -> {} (Component {})", vertex, neighbor, vertex_to_component[&neighbor]);
+                        }
+                    }
+                }
+            }
+            println!();
+        }
+    }
 }
 
 fn main() {
@@ -352,6 +378,8 @@ fn main() {
     // Connections between components
     scc_graph.add_edge(2, 3);
     scc_graph.add_edge(5, 6);
+
+    scc_graph.display();
 
     println!("Strongly Connected Components: {:?}", scc_graph.kosaraju());
 }
