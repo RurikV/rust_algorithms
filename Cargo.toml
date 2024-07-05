@@ -119,4 +119,8 @@ path = "src/trie.rs"
 name = "graph"
 path = "src/graph.rs"
 
+[[bin]]
+name = "directed_graph"
+path = "src/directed_graph.rs"
+
 
