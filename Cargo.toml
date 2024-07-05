@@ -124,3 +124,6 @@ name = "directed_graph"
 path = "src/directed_graph.rs"
 
 
+[[bin]]
+name = "graph_kruskal"
+path = "src/graph_kruskal.rs"
