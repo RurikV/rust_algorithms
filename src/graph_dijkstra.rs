@@ -1,11 +1,18 @@
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 struct Edge {
     u: usize,
     v: usize,
     weight: i32,
+}
+
+impl fmt::Display for Edge {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} -- {} : {}", self.u, self.v, self.weight)
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -73,37 +80,60 @@ fn dijkstra(graph: &Vec<Vec<i32>>, start: usize) -> Vec<Edge> {
     edges
 }
 
-fn floyd_warshall(graph: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+fn floyd_warshall(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
     let n = graph.len();
     let mut dist = vec![vec![i32::MAX; n]; n];
+    let mut next = vec![vec![None; n]; n];
 
-    // Initialize distances
+    // Initialize distances and next matrix
     for i in 0..n {
         for j in (0..graph[i].len()).step_by(2) {
             let v = graph[i][j] as usize;
             let weight = graph[i][j + 1];
             dist[i][v] = weight;
+            next[i][v] = Some(v);
         }
-        dist[i][i] = 0; // Distance to self is 0
+        dist[i][i] = 0;
+        next[i][i] = Some(i);
     }
 
-    // the main part of Floyd-Warshall algorithm 
+    // Floyd-Warshall algorithm
     for k in 0..n {
         for i in 0..n {
             for j in 0..n {
                 if dist[i][k] != i32::MAX && dist[k][j] != i32::MAX {
-                    dist[i][j] = dist[i][j].min(dist[i][k].saturating_add(dist[k][j]));
+                    let through_k = dist[i][k].saturating_add(dist[k][j]);
+                    if through_k < dist[i][j] {
+                        dist[i][j] = through_k;
+                        next[i][j] = next[i][k];
+                    }
                 }
             }
         }
     }
 
-    dist
+    // Reconstruct paths
+    let mut paths = Vec::new();
+    for i in 0..n {
+        for j in 0..n {
+            if i != j && next[i][j].is_some() {
+                let mut current = i;
+                while current != j {
+                    let next_node = next[current][j].unwrap();
+                    paths.push(Edge { u: current, v: next_node, weight: dist[current][next_node] });
+                    current = next_node;
+                }
+            }
+        }
+    }
+
+    paths
 }
 
-fn bellman_ford(graph: &Vec<Vec<i32>>, start: usize) -> Option<Vec<i32>> {
+fn bellman_ford(graph: &Vec<Vec<i32>>, start: usize) -> Option<Vec<Edge>> {
     let n = graph.len();
     let mut dist = vec![i32::MAX; n];
+    let mut prev = vec![None; n];
     dist[start] = 0;
 
     let mut edges = Vec::new();
@@ -122,6 +152,7 @@ fn bellman_ford(graph: &Vec<Vec<i32>>, start: usize) -> Option<Vec<i32>> {
         for edge in &edges {
             if dist[edge.u] != i32::MAX && dist[edge.u].saturating_add(edge.weight) < dist[edge.v] {
                 dist[edge.v] = dist[edge.u].saturating_add(edge.weight);
+                prev[edge.v] = Some(edge.u);
             }
         }
     }
@@ -133,7 +164,19 @@ fn bellman_ford(graph: &Vec<Vec<i32>>, start: usize) -> Option<Vec<i32>> {
         }
     }
 
-    Some(dist)
+    // Reconstruct paths
+    let mut paths = Vec::new();
+    for v in 0..n {
+        if v != start && prev[v].is_some() {
+            let mut current = v;
+            while let Some(p) = prev[current] {
+                paths.push(Edge { u: p, v: current, weight: dist[current] - dist[p] });
+                current = p;
+            }
+        }
+    }
+
+    Some(paths)
 }
 
 fn display_graph(graph: &Vec<Vec<i32>>) {
@@ -182,26 +225,21 @@ fn main() {
 
     println!("Floyd-Warshall Algorithm Results:");
     let floyd_warshall_result = floyd_warshall(&graph);
-    for (i, paths) in floyd_warshall_result.iter().enumerate() {
-        println!("Shortest paths from node {}:", i);
-        for edge in paths {
-            println!("  {}", edge);
-        }
-        println!();
+    for edge in &floyd_warshall_result {
+        println!("{}", edge);
     }
-    println!("{:?}", floyd_warshall(&graph));
+    println!();
+    println!("{:?}", floyd_warshall_result);
 
     println!("\nBellman-Ford Algorithm Results:");
     match bellman_ford(&graph, start_node) {
         Some(paths) => {
-            println!("Shortest paths from node {}:", start_node);
             for edge in &paths {
-                println!("  {}", edge);
+                println!("{}", edge);
             }
             println!();
             println!("{:?}", paths);
         },
         None => println!("Negative-weight cycle detected"),
     }
-    println!("{:?}", bellman_ford(&graph, start_node));
 }
