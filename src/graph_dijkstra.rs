@@ -112,17 +112,12 @@ fn floyd_warshall(graph: &Vec<Vec<i32>>) -> Vec<Edge> {
         }
     }
 
-    // Reconstruct paths
+    // Reconstruct the shortest paths
     let mut paths = Vec::new();
     for i in 0..n {
-        for j in 0..n {
-            if i != j && next[i][j].is_some() {
-                let mut current = i;
-                while current != j {
-                    let next_node = next[current][j].unwrap();
-                    paths.push(Edge { u: current, v: next_node, weight: dist[current][next_node] });
-                    current = next_node;
-                }
+        for j in (i+1)..n {  // Only consider each pair once
+            if dist[i][j] != i32::MAX && i != j {
+                paths.push(Edge { u: i, v: j, weight: dist[i][j] });
             }
         }
     }
