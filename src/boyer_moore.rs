@@ -57,25 +57,55 @@ fn suffix_shift_search(text: &str, pattern: &str) -> Option<usize> {
 fn boyer_moore_search(text: &str, pattern: &str) -> Option<usize> {
     let text_chars: Vec<char> = text.chars().collect();
     let pattern_chars: Vec<char> = pattern.chars().collect();
+    let pattern_len = pattern_chars.len();
+    let text_len = text_chars.len();
 
-    let mut skip = vec![pattern_chars.len(); 256];
-    for (i, &c) in pattern_chars.iter().enumerate() {
-        skip[c as usize] = pattern_chars.len() - i - 1;
+    if pattern_len == 0 || text_len == 0 || pattern_len > text_len {
+        return None;
     }
 
-    let mut i = pattern_chars.len() - 1;
-    while i < text_chars.len() {
-        let mut j = pattern_chars.len() - 1;
+    let mut skip = [pattern_len; 256];
+    for (i, &c) in pattern_chars.iter().enumerate() {
+        skip[c as usize] = pattern_len - 1 - i;
+    }
+
+    let mut i = pattern_len - 1;
+    while i < text_len {
+        let mut j = pattern_len - 1;
         while j > 0 && pattern_chars[j] == text_chars[i] {
             i -= 1;
             j -= 1;
         }
-        if j == 0 {
+        if j == 0 && pattern_chars[0] == text_chars[i] {
             return Some(i);
         }
         i += std::cmp::max(skip[text_chars[i] as usize], 1);
     }
     None
+}
+
+fn main() {
+    let test_cases = [
+        ("Hello, World!", "World"),
+        ("aaaaaaaaaaaaaaaaaaab", "aaaab"),
+        ("abcdefghijklmnopqrstuvwxyz", "xyz"),
+        ("Lorem ipsum dolor sit amet, consectetur adipiscing elit.", "consectetur"),
+        ("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.", "exercitation ullamco"),
+    ];
+
+    let iterations = [10_000, 100_000, 1_000_000];
+
+    for &iter in &iterations {
+        println!("\nResults for {} iterations:", iter);
+        println!("| Test Case |  Brute Force | Prefix Shift | Suffix Shift |  Boyer-Moore |");
+        println!("|-----------|--------------|--------------|--------------|--------------|");
+
+        for (i, (text, pattern)) in test_cases.iter().enumerate() {
+            print!("|  Case {}   | ", i + 1);
+            test_algorithms(text, pattern, iter);
+            println!();
+        }
+    }
 }
 
 fn test_algorithms(text: &str, pattern: &str, iterations: u32) {
@@ -86,28 +116,13 @@ fn test_algorithms(text: &str, pattern: &str, iterations: u32) {
         ("Boyer-Moore", boyer_moore_search),
     ];
 
-    for (name, algorithm) in algorithms.iter() {
+    for (_, algorithm) in algorithms.iter() {
         let start = Instant::now();
-        let mut result = None;
+        let mut _result = None;
         for _ in 0..iterations {
-            result = algorithm(text, pattern);
+            _result = algorithm(text, pattern);
         }
         let duration = start.elapsed() / iterations;
-        println!("{}: {:?}, Result: {:?}", name, duration, result);
-    }
-}
-
-fn main() {
-    let test_cases = [
-        ("Hello, World!", "World"),
-        ("aaaaaaaaaaaaaaaaaaab", "aaaab"),
-        ("abcdefghijklmnopqrstuvwxyz", "xyz"),
-        ("Lorem ipsum dolor sit amet, consectetur adipiscing elit.", "consectetur"),
-    ];
-
-    for (i, (text, pattern)) in test_cases.iter().enumerate() {
-        println!("Test case {}:", i + 1);
-        test_algorithms(text, pattern, 10000);
-        println!();
+        print!("       {:?} | ", duration);
     }
 }
