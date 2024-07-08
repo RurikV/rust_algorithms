@@ -88,23 +88,32 @@ fn kmp_search(text: &str, pattern: &str) -> Option<usize> {
 }
 
 use std::time::Instant;
+use std::fmt::Write;
 
-fn test_algorithms(text: &str, pattern: &str, iterations: u32) {
+fn test_algorithms(text: &str, pattern: &str, iterations: u32) -> (String, String) {
     let algorithms: [(&str, fn(&str, &str) -> Option<usize>); 2] = [
         ("KMP Automaton", kmp_search_automaton),
         ("KMP", kmp_search),
     ];
 
-    for (_name, algorithm) in algorithms.iter() {
+    let mut results = ("".to_string(), "".to_string());
+
+    for (i, (_, algorithm)) in algorithms.iter().enumerate() {
         let start = Instant::now();
         let mut result = None;
         for _ in 0..iterations {
             result = algorithm(text, pattern);
         }
         let duration = start.elapsed() / iterations;
-        print!("{:?} ({}) | ", duration, result.map_or("Not found", |_v| "Found"));
+        let _ = write!(
+            if i == 0 { &mut results.0 } else { &mut results.1 },
+            "{:7} ({:9})",
+            format!("{:?}", duration),
+            if result.is_some() { "Found" } else { "Not found" }
+        );
     }
-    println!();
+
+    results
 }
 
 fn main() {
@@ -116,13 +125,14 @@ fn main() {
         ("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.", "exercitation ullamco"),
     ];
 
-    for iterations in [1000, 10_000, 100_000] {
+    for iterations in [1_000, 10_000, 100_000] {
         println!("\nResults for {} iterations:", iterations);
-        println!("| Test Case | KMP Automaton |      KMP    |");
-        println!("|-----------|---------------|-------------|");
+        println!("| {:^9} | {:^21} | {:^21} |", "Test Case", "KMP Automaton", "KMP");
+        println!("|{:-^11}|{:-^23}|{:-^23}|", "", "", "");
+
         for (i, (text, pattern)) in test_cases.iter().enumerate() {
-            print!("| Case {} | ", i + 1);
-            test_algorithms(text, pattern, iterations);
+            let (automaton_result, kmp_result) = test_algorithms(text, pattern, iterations);
+            println!("| Case {:<4} | {} | {} |", i + 1, automaton_result, kmp_result);
         }
     }
 }
