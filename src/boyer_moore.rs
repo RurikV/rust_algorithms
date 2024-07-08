@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 fn brute_force_search(text: &str, pattern: &str) -> Option<usize> {
     let text_chars: Vec<char> = text.chars().collect();
     let pattern_chars: Vec<char> = pattern.chars().collect();
@@ -52,10 +54,32 @@ fn suffix_shift_search(text: &str, pattern: &str) -> Option<usize> {
     None
 }
 
-use std::time::{Duration, Instant};
+fn boyer_moore_search(text: &str, pattern: &str) -> Option<usize> {
+    let text_chars: Vec<char> = text.chars().collect();
+    let pattern_chars: Vec<char> = pattern.chars().collect();
+
+    let mut skip = vec![pattern_chars.len(); 256];
+    for (i, &c) in pattern_chars.iter().enumerate() {
+        skip[c as usize] = pattern_chars.len() - i - 1;
+    }
+
+    let mut i = pattern_chars.len() - 1;
+    while i < text_chars.len() {
+        let mut j = pattern_chars.len() - 1;
+        while j > 0 && pattern_chars[j] == text_chars[i] {
+            i -= 1;
+            j -= 1;
+        }
+        if j == 0 {
+            return Some(i);
+        }
+        i += std::cmp::max(skip[text_chars[i] as usize], 1);
+    }
+    None
+}
 
 fn test_algorithms(text: &str, pattern: &str, iterations: u32) {
-    let algorithms = [
+    let algorithms: [(&str, fn(&str, &str) -> Option<usize>); 4] = [
         ("Brute Force", brute_force_search),
         ("Prefix Shift", prefix_shift_search),
         ("Suffix Shift", suffix_shift_search),
