@@ -95,14 +95,14 @@ fn test_algorithms(text: &str, pattern: &str, iterations: u32) {
         ("KMP", kmp_search),
     ];
 
-    for (name, algorithm) in algorithms.iter() {
+    for (_name, algorithm) in algorithms.iter() {
         let start = Instant::now();
         let mut result = None;
         for _ in 0..iterations {
             result = algorithm(text, pattern);
         }
         let duration = start.elapsed() / iterations;
-        print!("{:?} ({}) | ", duration, result.map_or("Not found", |v| "Found"));
+        print!("{:?} ({}) | ", duration, result.map_or("Not found", |_v| "Found"));
     }
     println!();
 }
@@ -118,8 +118,8 @@ fn main() {
 
     for iterations in [1000, 10_000, 100_000] {
         println!("\nResults for {} iterations:", iterations);
-        println!("| Test Case | KMP Automaton | KMP |");
-        println!("|-----------|---------------|-----|");
+        println!("| Test Case | KMP Automaton |      KMP    |");
+        println!("|-----------|---------------|-------------|");
         for (i, (text, pattern)) in test_cases.iter().enumerate() {
             print!("| Case {} | ", i + 1);
             test_algorithms(text, pattern, iterations);
