@@ -54,34 +54,80 @@ fn suffix_shift_search(text: &str, pattern: &str) -> Option<usize> {
     None
 }
 
+use std::cmp;
+
 fn boyer_moore_search(text: &str, pattern: &str) -> Option<usize> {
-    let text_chars: Vec<char> = text.chars().collect();
-    let pattern_chars: Vec<char> = pattern.chars().collect();
-    let pattern_len = pattern_chars.len();
-    let text_len = text_chars.len();
+    let text = text.as_bytes();
+    let pattern = pattern.as_bytes();
+    
+    if pattern.is_empty() { return Some(0); }
+    if text.len() < pattern.len() { return None; }
 
-    if pattern_len == 0 || text_len == 0 || pattern_len > text_len {
-        return None;
+    // Bad Character Heuristic
+    let mut bad_char = [pattern.len(); 256];
+    for (i, &c) in pattern.iter().enumerate() {
+        bad_char[c as usize] = pattern.len() - 1 - i;
     }
 
-    let mut skip = [pattern_len; 256];
-    for (i, &c) in pattern_chars.iter().enumerate() {
-        skip[c as usize] = pattern_len - 1 - i;
+    // Good Suffix Heuristic
+    let mut good_suffix = vec![0; pattern.len() + 1];
+    let mut last_prefix_position = pattern.len();
+
+    // Case 2: suffix matches prefix
+    for i in (0..pattern.len()).rev() {
+        if is_prefix(pattern, i + 1) {
+            last_prefix_position = i + 1;
+        }
+        good_suffix[i] = last_prefix_position - i + pattern.len() - 1;
     }
 
-    let mut i = pattern_len - 1;
-    while i < text_len {
-        let mut j = pattern_len - 1;
-        while j > 0 && pattern_chars[j] == text_chars[i] {
-            i -= 1;
-            j -= 1;
+    // Case 1: suffix matches somewhere else
+    for i in 0..pattern.len() - 1 {
+        let len = suffix_length(pattern, i);
+        if pattern[i - len] != pattern[pattern.len() - 1 - len] {
+            good_suffix[pattern.len() - 1 - len] = pattern.len() - 1 - i + len;
         }
-        if j == 0 && pattern_chars[0] == text_chars[i] {
-            return Some(i);
+    }
+
+    let mut i = pattern.len() - 1;
+    unsafe {
+        while i < text.len() {
+            let mut j = pattern.len() - 1;
+            while j > 0 && *pattern.get_unchecked(j) == *text.get_unchecked(i) {
+                i -= 1;
+                j -= 1;
+            }
+            if j == 0 && *pattern.get_unchecked(0) == *text.get_unchecked(i) {
+                return Some(i);
+            } else {
+                let bad_char_shift = bad_char[*text.get_unchecked(i) as usize].saturating_sub(pattern.len() - 1 - j);
+                let good_suffix_shift = *good_suffix.get_unchecked(j);
+                i += cmp::max(bad_char_shift, good_suffix_shift);
+            }
         }
-        i += std::cmp::max(skip[text_chars[i] as usize], 1);
     }
     None
+}
+
+fn is_prefix(pattern: &[u8], p: usize) -> bool {
+    for i in p..pattern.len() {
+        if pattern[i] != pattern[i - p] {
+            return false;
+        }
+    }
+    true
+}
+
+fn suffix_length(pattern: &[u8], p: usize) -> usize {
+    let mut len = 0;
+    let mut i = p;
+    let mut j = pattern.len() - 1;
+    while i > 0 && pattern[i - 1] == pattern[j] {
+        len += 1;
+        i -= 1;
+        j -= 1;
+    }
+    len
 }
 
 fn main() {
