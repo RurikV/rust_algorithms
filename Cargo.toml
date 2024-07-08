@@ -131,3 +131,7 @@ path = "src/graph_kruskal.rs"
 [[bin]]
 name = "graph_dijkstra"
 path = "src/graph_dijkstra.rs"
+
+[[bin]]
+name = "boyer_moore"
+path = "src/boyer_moore.rs"
