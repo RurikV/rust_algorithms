@@ -140,3 +140,6 @@ path = "src/boyer_moore.rs"
 name = "kmp"
 path = "src/kmp.rs"
 
+[[bin]]
+name = "rle"
+path = "src/rle.rs"
