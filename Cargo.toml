@@ -147,3 +147,8 @@ path = "src/rle.rs"
 [[bin]]
 name = "print_bytes"
 path = "src/print_bytes.rs"
+
+[[bin]]
+name = "barn"
+path = "src/barn.rs"
+
