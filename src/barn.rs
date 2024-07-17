@@ -1,12 +1,13 @@
 use std::io::{self, Write, BufRead};
 use std::cmp;
 
+#[allow(dead_code)]
 fn main() {
     println!("Welcome to the Maximum Barn Area Calculator!");
     println!("Follow the instructions to input data about your farm.");
     println!();
 
-    let (n, m, grid) = read_input();
+    let (_n, _m, grid) = read_input();
     let max_area = largest_rectangle_area(&grid);
     
     println!();
@@ -28,7 +29,7 @@ fn read_input() -> (usize, usize, Vec<Vec<i32>>) {
     let mut lines = stdin.lock().lines();
 
     // Read N and M
-    print!("Enter the matrix size N M (space-separated, 1 <= N, M <= 1000): ");
+    println!("Enter the matrix size N M (space-separated, 1 <= N, M <= 1000): ");
     stdout.flush().unwrap();
     let nm: Vec<usize> = lines.next().unwrap().unwrap()
         .split_whitespace()
@@ -40,14 +41,14 @@ fn read_input() -> (usize, usize, Vec<Vec<i32>>) {
     let mut grid = vec![vec![0; m]; n];
 
     // Read number of obstacles
-    print!("Enter the number of buildings T (0 <= T <= 10000): ");
+    println!("Enter the number of buildings T (0 <= T <= 10000): ");
     stdout.flush().unwrap();
     let t: usize = lines.next().unwrap().unwrap().parse().unwrap();
 
     // Read and mark obstacles
     println!("Enter the coordinates of buildings (two numbers X Y per line, where 0 <= X < N and 0 <= Y < M):");
     for i in 1..=t {
-        print!("Building {}: ", i);
+        println!("Building {}: ", i);
         stdout.flush().unwrap();
         let xy: Vec<usize> = lines.next().unwrap().unwrap()
             .split_whitespace()
@@ -59,6 +60,7 @@ fn read_input() -> (usize, usize, Vec<Vec<i32>>) {
     (n, m, grid)
 }
 
+#[allow(dead_code)]
 fn largest_rectangle_area(grid: &Vec<Vec<i32>>) -> i32 {
     let n = grid.len();
     let m = grid[0].len();
@@ -101,6 +103,7 @@ fn largest_rectangle_histogram(heights: &Vec<i32>) -> i32 {
     max_area
 }
 
+#[allow(dead_code)]
 fn print_ascii_barn(grid: &Vec<Vec<i32>>, max_area: i32) {
     let n = grid.len();
     let m = grid[0].len();
@@ -135,6 +138,7 @@ fn print_ascii_barn(grid: &Vec<Vec<i32>>, max_area: i32) {
     }
 }
 
+#[allow(dead_code)]
 fn find_largest_barn(grid: &Vec<Vec<i32>>, i: usize, j: usize, max_area: i32) -> Option<(i32, i32)> {
     let n = grid.len() as i32;
     let m = grid[0].len() as i32;
@@ -151,7 +155,7 @@ fn find_largest_barn(grid: &Vec<Vec<i32>>, i: usize, j: usize, max_area: i32) ->
     }
     None
 }
-
+#[allow(dead_code)]
 fn can_fit_barn(grid: &Vec<Vec<i32>>, i: usize, j: usize, height: i32, width: i32) -> bool {
     for x in i..i + height as usize {
         for y in j..j + width as usize {
