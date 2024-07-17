@@ -1,18 +1,35 @@
-use std::io::{self, BufRead};
+use std::io::{self, Write, BufRead};
 use std::cmp;
 
 fn main() {
+    println!("Welcome to the Maximum Barn Area Calculator!");
+    println!("Follow the instructions to input data about your farm.");
+    println!();
+
     let (n, m, grid) = read_input();
     let max_area = largest_rectangle_area(&grid);
-    println!("Maximum area of the barn: {}", max_area);
-    print_ascii_barn(&grid, max_area);
+    
+    println!();
+    println!("Results:");
+    println!("Maximum barn area: {}", max_area);
+    println!();
+    
+    if max_area > 0 {
+        println!("Visualization of the farm and maximum barn:");
+        print_ascii_barn(&grid, max_area);
+    } else {
+        println!("There is no space available for a barn on this farm.");
+    }
 }
 
 fn read_input() -> (usize, usize, Vec<Vec<i32>>) {
     let stdin = io::stdin();
+    let mut stdout = io::stdout();
     let mut lines = stdin.lock().lines();
 
     // Read N and M
+    print!("Enter the matrix size N M (space-separated, 1 <= N, M <= 1000): ");
+    stdout.flush().unwrap();
     let nm: Vec<usize> = lines.next().unwrap().unwrap()
         .split_whitespace()
         .map(|x| x.parse().unwrap())
@@ -23,10 +40,15 @@ fn read_input() -> (usize, usize, Vec<Vec<i32>>) {
     let mut grid = vec![vec![0; m]; n];
 
     // Read number of obstacles
+    print!("Enter the number of buildings T (0 <= T <= 10000): ");
+    stdout.flush().unwrap();
     let t: usize = lines.next().unwrap().unwrap().parse().unwrap();
 
     // Read and mark obstacles
-    for _ in 0..t {
+    println!("Enter the coordinates of buildings (two numbers X Y per line, where 0 <= X < N and 0 <= Y < M):");
+    for i in 1..=t {
+        print!("Building {}: ", i);
+        stdout.flush().unwrap();
         let xy: Vec<usize> = lines.next().unwrap().unwrap()
             .split_whitespace()
             .map(|x| x.parse().unwrap())
@@ -94,57 +116,51 @@ fn print_ascii_barn(grid: &Vec<Vec<i32>>, max_area: i32) {
     }
 
     // Find and mark the largest barn
-    let mut found = false;
-    for i in 0..n {
-        for j in 0..m {
-            if !found {
-                let (height, width) = find_largest_barn(grid, i, j, max_area);
-                if height * width == max_area {
+    if max_area > 0 {
+        'outer: for i in 0..n {
+            for j in 0..m {
+                if let Some((height, width)) = find_largest_barn(grid, i, j, max_area) {
                     mark_barn(&mut ascii_grid, i, j, height, width);
-                    found = true;
-                    break;
+                    break 'outer;
                 }
             }
-        }
-        if found {
-            break;
         }
     }
 
     // Print the ASCII grid
+    println!("Legend: '.' - empty cell, '#' - obstacle, '*' - largest possible barn");
+    println!();
     for row in ascii_grid {
         println!("{}", row.iter().collect::<String>());
     }
 }
 
-fn find_largest_barn(grid: &Vec<Vec<i32>>, i: usize, j: usize, max_area: i32) -> (i32, i32) {
+fn find_largest_barn(grid: &Vec<Vec<i32>>, i: usize, j: usize, max_area: i32) -> Option<(i32, i32)> {
     let n = grid.len() as i32;
     let m = grid[0].len() as i32;
-    let mut height = (max_area as f64).sqrt().ceil() as i32;
-    let mut width = max_area / height;
-
-    while height > 0 && width > 0 {
-        if i as i32 + height <= n && j as i32 + width <= m {
-            let mut fits = true;
-            for x in i..i + height as usize {
-                for y in j..j + width as usize {
-                    if grid[x][y] == 1 {
-                        fits = false;
-                        break;
-                    }
+    
+    for height in (1..=max_area).rev() {
+        if max_area % height == 0 {
+            let width = max_area / height;
+            if i as i32 + height <= n && j as i32 + width <= m {
+                if can_fit_barn(grid, i, j, height, width) {
+                    return Some((height, width));
                 }
-                if !fits {
-                    break;
-                }
-            }
-            if fits {
-                return (height, width);
             }
         }
-        height -= 1;
-        width = max_area / height;
     }
-    (0, 0)
+    None
+}
+
+fn can_fit_barn(grid: &Vec<Vec<i32>>, i: usize, j: usize, height: i32, width: i32) -> bool {
+    for x in i..i + height as usize {
+        for y in j..j + width as usize {
+            if grid[x][y] == 1 {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 fn mark_barn(ascii_grid: &mut Vec<Vec<char>>, i: usize, j: usize, height: i32, width: i32) {
@@ -154,39 +170,6 @@ fn mark_barn(ascii_grid: &mut Vec<Vec<char>>, i: usize, j: usize, height: i32, w
         }
     }
 }
-
-fn can_fit_barn(grid: &Vec<Vec<i32>>, i: usize, j: usize, area: i32) -> bool {
-    let n = grid.len();
-    let m = grid[0].len();
-    let height = (area as f64).sqrt().ceil() as usize;
-    let width = area as usize / height;
-
-    if i + height > n || j + width > m {
-        return false;
-    }
-
-    for x in i..i + height {
-        for y in j..j + width {
-            if grid[x][y] == 1 {
-                return false;
-            }
-        }
-    }
-
-    true
-}
-
-// fn mark_barn(ascii_grid: &mut Vec<Vec<char>>, i: usize, j: usize, area: i32) {
-//     let height = (area as f64).sqrt().ceil() as usize;
-//     let width = area as usize / height;
-
-//     for x in i..i + height {
-//         for y in j..j + width {
-//             ascii_grid[x][y] = '*';
-//         }
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;

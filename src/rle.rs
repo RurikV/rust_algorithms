@@ -5,7 +5,7 @@ use std::time::Instant;
 fn create_test_files() -> std::io::Result<()> {
     // Create a text file
     let mut text_file = File::create("text.txt")?;
-    text_file.write_all(b"This is a sample text file. It contains repeating characters like aaaaabbbbbcccccddddd.")?;
+    text_file.write_all(b"Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Etiam rhoncus. Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit amet adipiscing sem neque sed ipsum. Nam quam nunc, blandit vel, luctus pulvinar, hendrerit id, lorem. Maecenas nec odio et ante tincidunt tempus. Donec vitae sapien ut libero venenatis faucibus. Nullam quis ante. Etiam sit amet orci eget eros faucibus tincidunt. Duis leo. Sed fringilla mauris sit amet nibh. Donec sodales sagittis magna. Sed consequat, leo eget bibendum sodales, augue velit cursus nunc,")?;
 
     // Create a "photo" file 
     let mut photo_file = File::create("photo.jpg")?;
@@ -105,34 +105,39 @@ fn rle_decompress(compressed: &[(u8, u8)]) -> Vec<u8> {
     decompressed
 }
 
+use std::collections::HashMap;
+
 fn improved_rle_compress(data: &[u8]) -> Vec<u8> {
     let mut compressed = Vec::new();
-    let mut count = 1;
-    let mut current = data[0];
+    let mut dictionary = HashMap::new();
+    let mut phrase = Vec::new();
+    let mut phrase_start = 0;
 
-    for &byte in data.iter().skip(1) {
-        if byte == current && count < 65535 {
-            count += 1;
+    for (i, &byte) in data.iter().enumerate() {
+        phrase.push(byte);
+        
+        if let Some(&index) = dictionary.get(&phrase) {
+            phrase_start = index;
         } else {
-            if count < 128 {
-                compressed.push(count as u8);
-            } else {
-                compressed.push(128 | (count >> 8) as u8);
-                compressed.push((count & 0xFF) as u8);
+            // Encode the longest matching phrase
+            if phrase.len() > 1 {
+                compressed.extend_from_slice(&(phrase_start as u16).to_le_bytes());
+                compressed.push((phrase.len() - 1) as u8);
             }
-            compressed.push(current);
-            current = byte;
-            count = 1;
+            compressed.push(byte);
+
+            // Add new phrase to dictionary
+            dictionary.insert(phrase.clone(), i);
+            phrase.clear();
+            phrase_start = i + 1;
         }
     }
 
-    if count < 128 {
-        compressed.push(count as u8);
-    } else {
-        compressed.push(128 | (count >> 8) as u8);
-        compressed.push((count & 0xFF) as u8);
+    // Handle any remaining phrase
+    if !phrase.is_empty() {
+        compressed.extend_from_slice(&(phrase_start as u16).to_le_bytes());
+        compressed.push((phrase.len() - 1) as u8);
     }
-    compressed.push(current);
 
     compressed
 }
@@ -142,23 +147,28 @@ fn improved_rle_decompress(compressed: &[u8]) -> Vec<u8> {
     let mut i = 0;
 
     while i < compressed.len() {
-        let mut count = compressed[i] as usize;
-        i += 1;
+        if i + 2 < compressed.len() {
+            let index = u16::from_le_bytes([compressed[i], compressed[i+1]]) as usize;
+            let length = compressed[i+2] as usize + 1;
+            i += 3;
 
-        if count & 128 != 0 {
-            count = ((count & 127) as usize) << 8 | compressed[i] as usize;
+            if index < decompressed.len() {
+                for j in 0..length {
+                    decompressed.push(decompressed[index + j]);
+                }
+            } else {
+                // If we can't reference previous data, it's a single byte
+                decompressed.push(compressed[i-1]);
+            }
+        } else {
+            // Handle remaining bytes
+            decompressed.push(compressed[i]);
             i += 1;
         }
-
-        let byte = compressed[i];
-        i += 1;
-
-        decompressed.extend(std::iter::repeat(byte).take(count));
     }
 
     decompressed
 }
-
 
 fn main() -> std::io::Result<()> {
     create_test_files()?;
