@@ -1,5 +1,5 @@
 use rand::Rng;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet};
 use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
 
@@ -147,6 +147,90 @@ impl SimHash {
     }
 }
 
+struct HyperLogLog {
+    m: usize,
+    registers: Vec<u8>,
+}
+
+impl HyperLogLog {
+    fn new(b: u8) -> Self {
+        let m = 1 << b;
+        HyperLogLog {
+            m,
+            registers: vec![0; m],
+        }
+    }
+
+    fn add(&mut self, item: &str) {
+        let hash = self.hash(item);
+        let index = (hash & (self.m as u64 - 1)) as usize;
+        let w = hash >> self.m.trailing_zeros();
+        let leading_zeros = w.leading_zeros() + 1;
+        self.registers[index] = self.registers[index].max(leading_zeros as u8);
+    }
+
+    fn count(&self) -> f64 {
+        let alpha = match self.m {
+            16 => 0.673,
+            32 => 0.697,
+            64 => 0.709,
+            _ => 0.7213 / (1.0 + 1.079 / self.m as f64),
+        };
+        let m = self.m as f64;
+        let sum: f64 = self.registers.iter().map(|&x| 2.0f64.powi(-(x as i32))).sum();
+        let estimate = alpha * m * m / sum;
+        estimate
+    }
+
+    fn hash(&self, item: &str) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        item.hash(&mut hasher);
+        hasher.finish()
+    }
+}
+
+struct CountMinSketch {
+    counters: Vec<Vec<u32>>,
+    hash_fns: Vec<Box<dyn Fn(&str) -> usize>>,
+}
+
+impl CountMinSketch {
+    fn new(d: usize, w: usize) -> Self {
+        let counters = vec![vec![0; w]; d];
+        let hash_fns = (0..d)
+            .map(|i| {
+                Box::new(move |s: &str| {
+                    let mut hasher = DefaultHasher::new();
+                    s.hash(&mut hasher);
+                    (hasher.finish().wrapping_add(i as u64) % w as u64) as usize
+                }) as Box<dyn Fn(&str) -> usize>
+            })
+            .collect();
+
+        CountMinSketch {
+            counters,
+            hash_fns,
+        }
+    }
+
+    fn add(&mut self, item: &str, count: u32) {
+        for (i, hash_fn) in self.hash_fns.iter().enumerate() {
+            let index = hash_fn(item);
+            self.counters[i][index] += count;
+        }
+    }
+
+    fn estimate(&self, item: &str) -> u32 {
+        self.hash_fns
+            .iter()
+            .enumerate()
+            .map(|(i, hash_fn)| self.counters[i][hash_fn(item)])
+            .min()
+            .unwrap_or(0)
+    }
+}
+
+
 fn jaccard_similarity(set1: &[u64], set2: &[u64]) -> f64 {
     let intersection = set1.iter().zip(set2).filter(|&(a, b)| a == b).count();
     intersection as f64 / set1.len() as f64
@@ -174,11 +258,6 @@ fn calculate_metrics(predictions: &[bool], actual: &[bool]) -> (f64, usize, usiz
     }
 
     let accuracy = (correct as f64 / total as f64) * 100.0;
-    let false_positive_rate = if false_positives + true_negatives > 0 {
-        (false_positives as f64 / (false_positives + true_negatives) as f64) * 100.0
-    } else {
-        0.0
-    };
 
     (accuracy, total, correct, false_positives, true_negatives)
 }
@@ -194,6 +273,8 @@ fn main() {
     let mut bloom_filter = BloomFilter::new(10000, 5);
     let minhash = MinHash::new(100);
     let simhash = SimHash::new(64);
+    let mut hyperloglog = HyperLogLog::new(10);  // 2^10 registers
+    let mut count_min_sketch = CountMinSketch::new(5, 1000);  // 5 hash functions, width 1000
     
     let mut minhash_signatures = Vec::new();
     let mut simhash_hashes = Vec::new();
@@ -204,6 +285,10 @@ fn main() {
             bloom_filter.insert(parts[1]);
             minhash_signatures.push(minhash.compute_signature(parts[1]));
             simhash_hashes.push(simhash.compute_hash(parts[1]));
+            hyperloglog.add(parts[1]);
+            for word in parts[1].split_whitespace() {
+                count_min_sketch.add(word, 1);
+            }
         }
     }
     
@@ -254,4 +339,13 @@ fn main() {
     println!("Correct predictions: {}", simhash_correct);
     println!("False positives: {}", simhash_fp);
     println!("True negatives: {}", simhash_tn);
+    
+    println!("\nHyperLogLog:");
+    println!("Estimated unique elements: {:.0}", hyperloglog.count());
+    
+    println!("\nCount-Min Sketch:");
+    let sample_words = ["the", "a", "an", "in", "of"];
+    for word in &sample_words {
+        println!("Estimated count of '{}': {}", word, count_min_sketch.estimate(word));
+    }
 }
