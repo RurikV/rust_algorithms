@@ -1,21 +1,3 @@
-fn kmp_automaton(pattern: &str) -> Vec<Vec<usize>> {
-    let m = pattern.len();
-    let alphabet: Vec<char> = pattern.chars().collect::<std::collections::HashSet<_>>().into_iter().collect();
-    let mut automaton = vec![vec![0; alphabet.len()]; m + 1];
-
-    for i in 0..=m {
-        for (j, &c) in alphabet.iter().enumerate() {
-            if i < m && pattern.chars().nth(i) == Some(c) {
-                automaton[i][j] = i + 1;
-            } else {
-                automaton[i][j] = if i > 0 { automaton[kmp_prefix_function(pattern)[i - 1]][j] } else { 0 };
-            }
-        }
-    }
-
-    automaton
-}
-
 fn build_kmp_automaton(pattern: &str) -> Vec<Vec<usize>> {
     let m = pattern.len();
     let mut automaton = vec![vec![0; 256]; m + 1];
@@ -69,20 +51,6 @@ fn kmp_search_automaton(text: &str, pattern: &str) -> Option<usize> {
     None
 }
 
-fn kmp_prefix_function_slow(pattern: &str) -> Vec<usize> {
-    let m = pattern.len();
-    let mut pi = vec![0; m];
-    
-    for i in 1..m {
-        for j in 0..=i {
-            if pattern[..j] == pattern[i-j+1..=i] {
-                pi[i] = j;
-            }
-        }
-    }
-    
-    pi
-}
 
 fn kmp_prefix_function(pattern: &str) -> Vec<usize> {
     let m = pattern.len();
@@ -121,7 +89,6 @@ fn kmp_search(text: &str, pattern: &str) -> Option<usize> {
     None
 }
 
-use std::collections::HashMap;
 use std::time::Instant;
 use std::fmt::Write;
 
