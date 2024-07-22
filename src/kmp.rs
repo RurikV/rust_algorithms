@@ -16,17 +16,51 @@ fn kmp_automaton(pattern: &str) -> Vec<Vec<usize>> {
     automaton
 }
 
+fn build_kmp_automaton(pattern: &str) -> Vec<Vec<usize>> {
+    let m = pattern.len();
+    let mut automaton = vec![vec![0; 256]; m + 1];
+    let mut lps = vec![0; m + 1];
+    
+    // Making the LPS table (Longest Proper Prefix which is also Suffix)
+    let mut len = 0;
+    let mut i = 1;
+    while i < m {
+        if pattern.as_bytes()[i] == pattern.as_bytes()[len] {
+            len += 1;
+            lps[i] = len;
+            i += 1;
+        } else if len != 0 {
+            len = lps[len - 1];
+        } else {
+            lps[i] = 0;
+            i += 1;
+        }
+    }
+    
+    // Making the automaton
+    for j in 0..256 {
+        automaton[0][j] = 0;
+    }
+    automaton[0][pattern.as_bytes()[0] as usize] = 1;
+    
+    for i in 1..=m {
+        for j in 0..256 {
+            if i < m && j == pattern.as_bytes()[i] as usize {
+                automaton[i][j] = i + 1;
+            } else {
+                automaton[i][j] = automaton[lps[i - 1]][j];
+            }
+        }
+    }
+    
+    automaton
+}
 fn kmp_search_automaton(text: &str, pattern: &str) -> Option<usize> {
-    let automaton = kmp_automaton(pattern);
-    let alphabet: Vec<char> = pattern.chars().collect::<std::collections::HashSet<_>>().into_iter().collect();
+    let automaton = build_kmp_automaton(pattern);
     let mut state = 0;
 
-    for (i, c) in text.char_indices() {
-        if let Some(j) = alphabet.iter().position(|&x| x == c) {
-            state = automaton[state][j];
-        } else {
-            state = 0;
-        }
+    for (i, &c) in text.as_bytes().iter().enumerate() {
+        state = automaton[state][c as usize];
         if state == pattern.len() {
             return Some(i - pattern.len() + 1);
         }
@@ -87,6 +121,7 @@ fn kmp_search(text: &str, pattern: &str) -> Option<usize> {
     None
 }
 
+use std::collections::HashMap;
 use std::time::Instant;
 use std::fmt::Write;
 
